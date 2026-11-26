@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <complex>
 #include <concepts>
 #include <cstddef>
 #include <initializer_list>
@@ -47,6 +48,45 @@ static_assert (comparable <dual_t <1>, double>);
 static_assert (comparable <dual_t <1>, int>);
 static_assert (not has_any_comparison <dual_t <1>, not_comparable>);
 static_assert (not has_any_comparison <dual_t <1>, dual_t <2>>);
+
+// A dual is made of a floating-point type: with an integer type, the
+// derivatives would be truncated.
+    template <class T>
+    concept
+is_valid_dual_value_type = requires { typename dual_t <1, T>; };
+static_assert (is_valid_dual_value_type <float>);
+static_assert (is_valid_dual_value_type <double>);
+static_assert (is_valid_dual_value_type <long double>);
+static_assert (not is_valid_dual_value_type <int>);
+static_assert (not is_valid_dual_value_type <dual_t <1>>);
+
+// Arithmetic and the functions of several arguments exist only with duals of
+// the same number of differentials, and with numbers of arithmetic types,
+// and asking whether they exist doesn't cause a compilation error.
+    template <class A, class B>
+    concept
+has_any_operation = requires (A const& a, B const& b) { a + b; }
+    or requires (A const& a, B const& b) { b + a; }
+    or requires (A const& a, B const& b) { a - b; }
+    or requires (A const& a, B const& b) { b - a; }
+    or requires (A const& a, B const& b) { a * b; }
+    or requires (A const& a, B const& b) { b * a; }
+    or requires (A const& a, B const& b) { a / b; }
+    or requires (A const& a, B const& b) { b / a; }
+    or requires (A a, B const& b) { a += b; }
+    or requires (A a, B const& b) { a -= b; }
+    or requires (A const& a, B const& b) { atan2 (a, b); }
+    or requires (A const& a, B const& b) { atan2 (b, a); }
+    or requires (A const& a, B const& b) { hypot (a, b); }
+    or requires (A const& a, B const& b) { hypot (b, a); }
+    or requires (A const& a, B const& b) { hypot (a, b, a); }
+    or requires (A const& a, B const& b) { hypot (b, a, b); }
+    or requires (A const& a, B const& b) { pow (a, b); }
+    or requires (A const& a, B const& b) { pow (b, a); };
+static_assert (not has_any_operation <dual_t <1>, dual_t <2>>);
+static_assert (not has_any_operation <dual_t <1>, std::complex <double>>);
+static_assert (not has_any_operation <dual_t <1>, not_comparable>);
+static_assert (not has_any_comparison <dual_t <1>, std::complex <double>>);
 
 // Tools to check the functions, with Real the floating-point type of the
 // values: the value of the result must be that of the std:: function, and its
@@ -210,6 +250,161 @@ check_unary_function (F f, D derivative, std::initializer_list <double> points)
 // The functions to check, callable with values and with duals.
 #define FUNCTION(name) \
     [] (auto const&... arguments) { using std::name; return name (arguments...); }
+
+// Arguments of different types, for the tests of the mixed types: the value
+// of x, and x converted to Result.
+    template <class X>
+    auto
+value_of (X const& x)
+{
+    if constexpr (requires { x.differentials; })
+    {
+        return x.value;
+    }
+    else
+    {
+        return x;
+    }
+}
+    template <class Result, class X>
+    auto
+converted (X const& x)
+{
+    if constexpr (requires { x.differentials; })
+    {
+        return dual_cast <Result> (x);
+    }
+    else
+    {
+        return static_cast <Result> (x);
+    }
+}
+
+// dual_cast converts to the floating-point types only.
+    template <class D, class U>
+    concept
+has_dual_cast = requires (D const& d) { dual_cast <U> (d); };
+
+// Checks that f, with arguments of different types, gives a dual of the type
+// of f of their values, equal to f of the arguments converted to that type:
+// as with numbers, the arguments are converted first.
+    template <class F, class... X>
+    void
+check_mixed (F f, X const&... arguments)
+{
+        using
+    result_t = decltype (f (value_of (arguments)...));
+        const auto
+    r = f (arguments...);
+    static_assert (std::same_as <decltype (r), dual_t <2, result_t> const>);
+        const auto
+    expected = f (converted <result_t> (arguments)...);
+    CHECK(r.value == expected.value);
+    CHECK(r.differentials == expected.differentials);
+}
+
+TEST_CASE("Mixed types")
+{
+        const auto
+    dual_float = dual_t <2, float> { opaque <float> (0.7), { 2, -3 } };
+        const auto
+    dual_double = dual_t <2, double> { opaque <double> (1.3), { -0.5, 5 } };
+        const auto
+    dual_long_double = dual_t <2, long double> { opaque <long double> (0.4), { 1, 0.25 } };
+        const auto
+    float_number = opaque <float> (0.6);
+        const auto
+    double_number = opaque <double> (1.7);
+        const auto
+    long_double_number = opaque <long double> (0.9);
+        const auto
+    int_number = opaque <int> (2);
+SUBCASE("dual_cast")
+{
+        const auto
+    d = dual_cast <double> (dual_float);
+    static_assert (std::same_as <decltype (d), dual_t <2, double> const>);
+    CHECK(d.value == static_cast <double> (dual_float.value));
+    CHECK(d.differentials[0] == 2);
+    CHECK(d.differentials[1] == -3);
+    static_assert (has_dual_cast <dual_t <2, float>, long double>);
+    static_assert (not has_dual_cast <dual_t <2, float>, int>);
+}
+    const auto
+check_all_pairs = [&] (auto f)
+{
+    check_mixed (f, dual_float, dual_double);
+    check_mixed (f, dual_double, dual_float);
+    check_mixed (f, dual_float, dual_long_double);
+    check_mixed (f, dual_long_double, dual_double);
+    check_mixed (f, dual_float, double_number);
+    check_mixed (f, double_number, dual_float);
+    check_mixed (f, dual_double, int_number);
+    check_mixed (f, int_number, dual_double);
+    check_mixed (f, dual_double, float_number);
+    check_mixed (f, float_number, dual_double);
+    check_mixed (f, dual_double, long_double_number);
+    check_mixed (f, long_double_number, dual_double);
+    check_mixed (f, dual_long_double, int_number);
+    check_mixed (f, int_number, dual_long_double);
+};
+SUBCASE("Arithmetic")
+{
+    check_all_pairs ([] (auto const& a, auto const& b) { return a + b; });
+    check_all_pairs ([] (auto const& a, auto const& b) { return a - b; });
+    check_all_pairs ([] (auto const& a, auto const& b) { return a * b; });
+    check_all_pairs ([] (auto const& a, auto const& b) { return a / b; });
+}
+SUBCASE("Functions of two arguments")
+{
+    check_all_pairs (FUNCTION (atan2));
+    check_all_pairs (FUNCTION (hypot));
+    check_all_pairs (FUNCTION (pow));
+}
+SUBCASE("Functions of three arguments")
+{
+    check_mixed (FUNCTION (hypot), dual_float, dual_double, dual_long_double);
+    check_mixed (FUNCTION (hypot), dual_float, dual_double, float_number);
+    check_mixed (FUNCTION (hypot), dual_float, int_number, dual_double);
+    check_mixed (FUNCTION (hypot), int_number, dual_float, dual_long_double);
+    check_mixed (FUNCTION (hypot), dual_float, double_number, int_number);
+    check_mixed (FUNCTION (hypot), int_number, dual_float, double_number);
+    check_mixed (FUNCTION (hypot), long_double_number, int_number, dual_float);
+}
+SUBCASE("A dual of float and an int")
+{
+    // As with numbers, an int gives a float, here without the warning that
+    // -Wconversion gives for a float and a non-constant int.
+        const auto
+    r = dual_float * int_number;
+    static_assert (std::same_as <decltype (r), dual_t <2, float> const>);
+    CHECK(r.value == dual_float.value * static_cast <float> (int_number));
+    CHECK(r.differentials[0] == 2 * static_cast <float> (int_number));
+}
+SUBCASE("Compound assignment")
+{
+    // As for numbers, the result is converted to the type of the dual.
+        auto
+    d = dual_float;
+    d += double_number;
+    CHECK(d.value == static_cast <float> (dual_float.value + double_number));
+    d -= double_number;
+    CHECK(d.value == static_cast <float> (static_cast <float> (dual_float.value + double_number) - double_number));
+}
+}
+
+// Arrays of duals combine with duals element-wise, as with numbers.
+    template <class A, class B, class Result>
+    concept
+gives = requires (A const& a, B const& b)
+{
+    { a + b } -> std::same_as <Result>;
+    { a - b } -> std::same_as <Result>;
+    { a * b } -> std::same_as <Result>;
+    { a / b } -> std::same_as <Result>;
+};
+static_assert (gives <array_t <dual_t <1>, 2>, dual_t <1>, array_t <dual_t <1>, 2>>);
+static_assert (gives <dual_t <1>, array_t <dual_t <1>, 2>, array_t <dual_t <1>, 2>>);
 
 TEST_CASE("automatic_differentiation.hpp")
 {

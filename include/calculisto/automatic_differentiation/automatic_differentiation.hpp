@@ -19,8 +19,9 @@ calculisto::automatic_differentiation
 // member initializer, so that the constant x can be written dual_t <N> { x }
 // without a warning about the missing initializer (-Wextra): default
 // initialization (dual_t <N> d;) leaves the value indeterminate, like that of
-// a double, but the differentials are zero.
-    template <std::size_t N, class T = double>
+// a double, but the differentials are zero. T is a floating-point type: with
+// an integer type, the derivatives would be truncated.
+    template <std::size_t N, std::floating_point T = double>
     struct
 dual_t
 {
@@ -41,7 +42,7 @@ dual_t (T, array_t <T, N>) -> dual_t <N, T>;
 // others are zero. Throws std::out_of_range if index >= N. As for dual_t, T
 // is double unless given: it is not deduced from the value, so that
 // independent_variable <N> (2, 0) is not a dual of int.
-    template <std::size_t N, class T = double>
+    template <std::size_t N, std::floating_point T = double>
     constexpr dual_t <N, T>
 independent_variable (std::type_identity_t <T> value, std::size_t index)
 {
@@ -49,6 +50,18 @@ independent_variable (std::type_identity_t <T> value, std::size_t index)
     r = dual_t <N, T> { value };
     r.differentials.at (index) = T { 1 };
     return r;
+}
+
+// The dual a with its value and differentials converted to U, like
+// array_cast: dual_t has no converting constructor.
+    template <std::floating_point U, std::size_t N, class T>
+    constexpr dual_t <N, U>
+dual_cast (dual_t <N, T> const& a)
+{
+    return dual_t <N, U> {
+          static_cast <U> (a.value)
+        , array_cast <U> (a.differentials)
+    };
 }
 
     namespace
@@ -61,11 +74,18 @@ detail
         template <std::size_t N, class T>
         constexpr bool
     is_dual <dual_t <N, T>> = true;
+
+    // The numbers a dual combines with: those of the arithmetic types. Not any
+    // type that combines with the value, such as an array, which would make
+    // array_t <dual_t <N>, M> times dual_t <N> ambiguous.
+        template <class T>
+        concept
+    arithmetic = std::is_arithmetic_v <T>;
 } // namespace detail
 
 // Comparisons compare the values only, like those of a number, so that code
 // branching on a dual takes the same branch as with its value. The operators
-// with a scalar on the left are rewritten from these ones.
+// with a number on the left are rewritten from these ones.
     template <std::size_t N, class T, class U>
     requires requires (T const& t, U const& u) 
     {
@@ -76,9 +96,8 @@ operator == (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
     return a.value == b.value;
 }
-    template <std::size_t N, class T, class U>
-    requires (not detail::is_dual <U>) 
-    and requires (T const& t, U const& u) 
+    template <std::size_t N, class T, detail::arithmetic U>
+    requires requires (T const& t, U const& u) 
     {
         { t == u } -> std::convertible_to <bool>;
     }
@@ -94,9 +113,8 @@ operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
     return a.value <=> b.value;
 }
-    template <std::size_t N, class T, class U>
-    requires (not detail::is_dual <U>) 
-    and requires (T const& t, U const& u) { t <=> u; }
+    template <std::size_t N, class T, detail::arithmetic U>
+    requires requires (T const& t, U const& u) { t <=> u; }
     constexpr auto
 operator <=> (dual_t <N, T> const& a, U const& b)
 {
@@ -116,114 +134,188 @@ operator - (dual_t <N, T> const& a)
     return dual_t { -a.value, -a.differentials };
 }
 
-    template <std::size_t N, class T, class U>
+// Arithmetic with a dual of another type, or with a number, gives a dual of
+// the type of the result of the arithmetic on the values, e.g. a dual of
+// float times a double is a dual of double. As in the arithmetic on numbers,
+// the arguments are converted to that type first: result_t below.
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator + (dual_t <N, T> const& a, U const& b)
 {
-    return dual_t { a.value + b, a.differentials };
+        using
+    result_t = decltype (a.value + b);
+        const auto
+    x = dual_cast <result_t> (a);
+    return dual_t { x.value + static_cast <result_t> (b), x.differentials };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator + (U const& a, dual_t <N, T> const& b)
 {
-    return dual_t { a + b.value, b.differentials };
+        using
+    result_t = decltype (a + b.value);
+        const auto
+    y = dual_cast <result_t> (b);
+    return dual_t { static_cast <result_t> (a) + y.value, y.differentials };
 }
     template <std::size_t N, class T, class U>
     auto
 operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
+        using
+    result_t = decltype (a.value + b.value);
+        const auto
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
     return dual_t { 
-          a.value + b.value
-        , a.differentials + b.differentials 
+          x.value + y.value
+        , x.differentials + y.differentials 
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto&
 operator += (dual_t <N, T>& a, U const& b)
 {
-    a.value += b;
+    // What += does for numbers, without the warning about the
+    // conversion, which would be in this header rather than in the code
+    // using it.
+    a.value = static_cast <T> (a.value + b);
     return a;
 }
 
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator - (dual_t <N, T> const& a, U const& b)
 {
-    return dual_t { a.value - b, a.differentials };
+        using
+    result_t = decltype (a.value - b);
+        const auto
+    x = dual_cast <result_t> (a);
+    return dual_t { x.value - static_cast <result_t> (b), x.differentials };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator - (U const& a, dual_t <N, T> const& b)
 {
-    return dual_t { a - b.value, -b.differentials };
+        using
+    result_t = decltype (a - b.value);
+        const auto
+    y = dual_cast <result_t> (b);
+    return dual_t { static_cast <result_t> (a) - y.value, -y.differentials };
 }
     template <std::size_t N, class T, class U>
     auto
 operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
+        using
+    result_t = decltype (a.value - b.value);
+        const auto
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
     return dual_t { 
-          a.value - b.value
-        , a.differentials - b.differentials 
+          x.value - y.value
+        , x.differentials - y.differentials 
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto&
 operator -= (dual_t <N, T>& a, U const& b)
 {
-    a.value -= b;
+    // What -= does for numbers, without the warning about the
+    // conversion, which would be in this header rather than in the code
+    // using it.
+    a.value = static_cast <T> (a.value - b);
     return a;
 }
 
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator * (dual_t <N, T> const& a, U const& b)
 {
-    return dual_t { a.value * b, a.differentials * b };
+        using
+    result_t = decltype (a.value * b);
+        const auto
+    x = dual_cast <result_t> (a);
+        const auto
+    s = static_cast <result_t> (b);
+    return dual_t { x.value * s, x.differentials * s };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator * (U const& a, dual_t <N, T> const& b)
 {
-    return dual_t { a * b.value, b.differentials * a };
+        using
+    result_t = decltype (a * b.value);
+        const auto
+    s = static_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+    return dual_t { s * y.value, y.differentials * s };
 }
     template <std::size_t N, class T, class U>
     auto
 operator * (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
+        using
+    result_t = decltype (a.value * b.value);
+        const auto
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
     return dual_t { 
-          a.value * b.value
-        , a.differentials * b.value + b.differentials * a.value 
+          x.value * y.value
+        , x.differentials * y.value + y.differentials * x.value 
     };
 }
 
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator / (dual_t <N, T> const& a, U const& b)
 {
+        using
+    result_t = decltype (a.value / b);
+        const auto
+    x = dual_cast <result_t> (a);
+        const auto
+    s = static_cast <result_t> (b);
     return dual_t { 
-          a.value / b
-        , a.differentials / b 
+          x.value / s
+        , x.differentials / s 
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 operator / (U const& a, dual_t <N, T> const& b)
 {
+        using
+    result_t = decltype (a / b.value);
+        const auto
+    s = static_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
     return dual_t { 
-          a / b.value
-        , -b.differentials * a / b.value / b.value
+          s / y.value
+        , -y.differentials * s / y.value / y.value
     };
 }
     template <std::size_t N, class T, class U>
     auto
 operator / (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
+        using
+    result_t = decltype (a.value / b.value);
+        const auto
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
     return dual_t { 
-          a.value / b.value
+          x.value / y.value
         , (
-              a.differentials * b.value 
-            - b.differentials * a.value
-          ) / b.value / b.value 
+              x.differentials * y.value 
+            - y.differentials * x.value
+          ) / y.value / y.value 
     };
 }
 
@@ -258,9 +350,15 @@ atan (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T, class U>
     auto
-atan2 (dual_t <N, T> const& y, dual_t <N, U> const& x)
+atan2 (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
         using std::atan2;
+        using
+    result_t = decltype (atan2 (a.value, b.value));
+        const auto
+    y = dual_cast <result_t> (a);
+        const auto
+    x = dual_cast <result_t> (b);
         const auto
     tmp = x.value * x.value + y.value * y.value;
     return dual_t { 
@@ -269,21 +367,33 @@ atan2 (dual_t <N, T> const& y, dual_t <N, U> const& x)
          + y.differentials * x.value / tmp
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
-atan2 (dual_t <N, T> const& y, U const& x)
+atan2 (dual_t <N, T> const& a, U const& b)
 {
         using std::atan2;
+        using
+    result_t = decltype (atan2 (a.value, b));
+        const auto
+    y = dual_cast <result_t> (a);
+        const auto
+    x = static_cast <result_t> (b);
     return dual_t { 
           atan2 (y.value, x)
         , y.differentials * x / (x * x + y.value * y.value)
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
-atan2 (U const& y, dual_t <N, T> const& x)
+atan2 (U const& a, dual_t <N, T> const& b)
 {
         using std::atan2;
+        using
+    result_t = decltype (atan2 (a, b.value));
+        const auto
+    y = static_cast <result_t> (a);
+        const auto
+    x = dual_cast <result_t> (b);
     return dual_t { 
           atan2 (y, x.value)
         , -x.differentials * y / (x.value * x.value + y * y)
@@ -469,36 +579,54 @@ fabs (dual_t <N, T> const& a)
 hypot (dual_t <N, T> const& a, dual_t <N, U> const& b)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a.value, b.value));
         const auto
-    tmp = hypot (a.value, b.value);
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+        const auto
+    tmp = hypot (x.value, y.value);
     return dual_t { 
           tmp
-        , a.differentials * a.value / tmp
-        + b.differentials * b.value / tmp
+        , x.differentials * x.value / tmp
+        + y.differentials * y.value / tmp
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 hypot (dual_t <N, T> const& a, U const& b)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a.value, b));
         const auto
-    tmp = hypot (a.value, b);
+    x = dual_cast <result_t> (a);
+        const auto
+    y = static_cast <result_t> (b);
+        const auto
+    tmp = hypot (x.value, y);
     return dual_t { 
           tmp
-        , a.differentials * a.value / tmp
+        , x.differentials * x.value / tmp
     };
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, detail::arithmetic T, class U>
     auto
-hypot (U const& a, dual_t <N, T> const& b)
+hypot (T const& a, dual_t <N, U> const& b)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a, b.value));
         const auto
-    tmp = hypot (a, b.value);
+    x = static_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+        const auto
+    tmp = hypot (x, y.value);
     return dual_t { 
           tmp
-        , b.differentials * b.value / tmp
+        , y.differentials * y.value / tmp
     };
 }
     template <std::size_t N, class T, class U, class V>
@@ -506,88 +634,144 @@ hypot (U const& a, dual_t <N, T> const& b)
 hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a.value, b.value, c.value));
         const auto
-    tmp = hypot (a.value, b.value, c.value);
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+        const auto
+    z = dual_cast <result_t> (c);
+        const auto
+    tmp = hypot (x.value, y.value, z.value);
     return dual_t { 
           tmp
-        , a.differentials * a.value / tmp
-        + b.differentials * b.value / tmp
-        + c.differentials * c.value / tmp
+        , x.differentials * x.value / tmp
+        + y.differentials * y.value / tmp
+        + z.differentials * z.value / tmp
     };
 }
-    template <std::size_t N, class T, class U, class V>
+    template <std::size_t N, class T, class U, detail::arithmetic V>
     auto
 hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a.value, b.value, c));
         const auto
-    tmp = hypot (a.value, b.value, c);
+    x = dual_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+        const auto
+    z = static_cast <result_t> (c);
+        const auto
+    tmp = hypot (x.value, y.value, z);
     return dual_t { 
           tmp
-        , a.differentials * a.value / tmp
-        + b.differentials * b.value / tmp
+        , x.differentials * x.value / tmp
+        + y.differentials * y.value / tmp
     };
 }
-    template <std::size_t N, class T, class U, class V>
+    template <std::size_t N, class T, detail::arithmetic U, class V>
     auto
 hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a.value, b, c.value));
         const auto
-    tmp = hypot (a.value, b, c.value);
+    x = dual_cast <result_t> (a);
+        const auto
+    y = static_cast <result_t> (b);
+        const auto
+    z = dual_cast <result_t> (c);
+        const auto
+    tmp = hypot (x.value, y, z.value);
     return dual_t { 
           tmp
-        , a.differentials * a.value / tmp
-        + c.differentials * c.value / tmp
+        , x.differentials * x.value / tmp
+        + z.differentials * z.value / tmp
     };
 }
-    template <std::size_t N, class T, class U, class V>
+    template <std::size_t N, detail::arithmetic T, class U, class V>
     auto
 hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a, b.value, c.value));
         const auto
-    tmp = hypot (a, b.value, c.value);
+    x = static_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+        const auto
+    z = dual_cast <result_t> (c);
+        const auto
+    tmp = hypot (x, y.value, z.value);
     return dual_t { 
           tmp
-        , b.differentials * b.value / tmp
-        + c.differentials * c.value / tmp
+        , y.differentials * y.value / tmp
+        + z.differentials * z.value / tmp
     };
 }
-    template <std::size_t N, class T, class U, class V>
+    template <std::size_t N, detail::arithmetic T, detail::arithmetic U, class V>
     auto
 hypot (T const& a, U const& b, dual_t <N, V> const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a, b, c.value));
         const auto
-    tmp = hypot (a, b, c.value);
+    x = static_cast <result_t> (a);
+        const auto
+    y = static_cast <result_t> (b);
+        const auto
+    z = dual_cast <result_t> (c);
+        const auto
+    tmp = hypot (x, y, z.value);
     return dual_t { 
           tmp
-        , c.differentials * c.value / tmp
+        , z.differentials * z.value / tmp
     };
 }
-    template <std::size_t N, class T, class U, class V>
+    template <std::size_t N, class T, detail::arithmetic U, detail::arithmetic V>
     auto
 hypot (dual_t <N, T> const& a, U const& b, V const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a.value, b, c));
         const auto
-    tmp = hypot (a.value, b, c);
+    x = dual_cast <result_t> (a);
+        const auto
+    y = static_cast <result_t> (b);
+        const auto
+    z = static_cast <result_t> (c);
+        const auto
+    tmp = hypot (x.value, y, z);
     return dual_t { 
           tmp
-        , a.differentials * a.value / tmp
+        , x.differentials * x.value / tmp
     };
 }
-    template <std::size_t N, class T, class U, class V>
+    template <std::size_t N, detail::arithmetic T, class U, detail::arithmetic V>
     auto
 hypot (T const& a, dual_t <N, U> const& b, V const& c)
 {
         using std::hypot;
+        using
+    result_t = decltype (hypot (a, b.value, c));
         const auto
-    tmp = hypot (a, b.value, c);
+    x = static_cast <result_t> (a);
+        const auto
+    y = dual_cast <result_t> (b);
+        const auto
+    z = static_cast <result_t> (c);
+        const auto
+    tmp = hypot (x, y.value, z);
     return dual_t { 
           tmp
-        , b.differentials * b.value / tmp
+        , y.differentials * y.value / tmp
     };
 }
 // d pow (a, b) = b pow (a, b - 1) da + pow (a, b) log (a) db. A term whose
@@ -604,30 +788,28 @@ hypot (T const& a, dual_t <N, U> const& b, V const& c)
     namespace
 detail
 {
-        template <class T, class U>
-        auto
-    pow_partial_base (T const& a, U const& b)
+        template <class T>
+        T
+    pow_partial_base (T const& a, T const& b)
     {
             using std::pow;
-            using
-        result_t = decltype (pow (a, b));
         if (b == 0)
         {
-            return result_t {};
+            return T {};
         }
-        return static_cast <result_t> (b * pow (a, b - 1));
+        return b * pow (a, b - 1);
     }
 
-        template <class T, class P>
-        auto
-    pow_partial_exponent (T const& a, P const& p)
+        template <class T>
+        T
+    pow_partial_exponent (T const& a, T const& p)
     {
             using std::log;
         if (p == 0 and a >= 0)
         {
-            return P {};
+            return T {};
         }
-        return static_cast <P> (p * log (a));
+        return p * log (a);
     }
 } // namespace detail
 
@@ -639,33 +821,37 @@ pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
         using
     result_t = decltype (pow (a.value, b.value));
         const auto
-    p = pow (a.value, b.value);
+    x = dual_cast <result_t> (a);
         const auto
-    partial_a = detail::pow_partial_base (a.value, b.value);
+    y = dual_cast <result_t> (b);
         const auto
-    partial_b = detail::pow_partial_exponent (a.value, p);
+    p = pow (x.value, y.value);
+        const auto
+    partial_x = detail::pow_partial_base (x.value, y.value);
+        const auto
+    partial_y = detail::pow_partial_exponent (x.value, p);
         auto
     r = dual_t <N, result_t> { p };
     for (std::size_t i = 0; i < N; ++i)
     {
         // The first term is assigned rather than added to the zero of r,
         // which would turn a -0 into +0.
-        if (a.differentials[i] != 0)
+        if (x.differentials[i] != 0)
         {
-            r.differentials[i] = a.differentials[i] * partial_a;
-            if (b.differentials[i] != 0)
+            r.differentials[i] = x.differentials[i] * partial_x;
+            if (y.differentials[i] != 0)
             {
-                r.differentials[i] += b.differentials[i] * partial_b;
+                r.differentials[i] += y.differentials[i] * partial_y;
             }
         }
-        else if (b.differentials[i] != 0)
+        else if (y.differentials[i] != 0)
         {
-            r.differentials[i] = b.differentials[i] * partial_b;
+            r.differentials[i] = y.differentials[i] * partial_y;
         }
     }
     return r;
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, detail::arithmetic U>
     auto
 pow (dual_t <N, T> const& a, U const& b)
 {
@@ -673,21 +859,23 @@ pow (dual_t <N, T> const& a, U const& b)
         using
     result_t = decltype (pow (a.value, b));
         const auto
-    p = pow (a.value, b);
+    x = dual_cast <result_t> (a);
         const auto
-    partial_a = detail::pow_partial_base (a.value, b);
+    y = static_cast <result_t> (b);
+        const auto
+    partial_x = detail::pow_partial_base (x.value, y);
         auto
-    r = dual_t <N, result_t> { p };
+    r = dual_t <N, result_t> { pow (x.value, y) };
     for (std::size_t i = 0; i < N; ++i)
     {
-        if (a.differentials[i] != 0)
+        if (x.differentials[i] != 0)
         {
-            r.differentials[i] = a.differentials[i] * partial_a;
+            r.differentials[i] = x.differentials[i] * partial_x;
         }
     }
     return r;
 }
-    template <std::size_t N, class T, class U>
+    template <std::size_t N, detail::arithmetic T, class U>
     auto
 pow (T const& a, dual_t <N, U> const& b)
 {
@@ -695,16 +883,20 @@ pow (T const& a, dual_t <N, U> const& b)
         using
     result_t = decltype (pow (a, b.value));
         const auto
-    p = pow (a, b.value);
+    x = static_cast <result_t> (a);
         const auto
-    partial_b = detail::pow_partial_exponent (a, p);
+    y = dual_cast <result_t> (b);
+        const auto
+    p = pow (x, y.value);
+        const auto
+    partial_y = detail::pow_partial_exponent (x, p);
         auto
     r = dual_t <N, result_t> { p };
     for (std::size_t i = 0; i < N; ++i)
     {
-        if (b.differentials[i] != 0)
+        if (y.differentials[i] != 0)
         {
-            r.differentials[i] = b.differentials[i] * partial_b;
+            r.differentials[i] = y.differentials[i] * partial_y;
         }
     }
     return r;
