@@ -2,7 +2,15 @@
     using doctest::Approx;
 #include <calculisto/automatic_differentiation/automatic_differentiation.hpp>
     using namespace calculisto::automatic_differentiation;
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <concepts>
+#include <cstddef>
+#include <initializer_list>
+#include <limits>
+#include <numbers>
+#include <utility>
 #include <type_traits>
     using calculisto::array::array_t;
 
@@ -39,6 +47,146 @@ static_assert (comparable <dual_t <1>, double>);
 static_assert (comparable <dual_t <1>, int>);
 static_assert (not has_any_comparison <dual_t <1>, not_comparable>);
 static_assert (not has_any_comparison <dual_t <1>, dual_t <2>>);
+
+// Tools to check the functions: the value of the result must be that of the
+// std:: function, and its differentials must be the partial derivatives,
+// computed independently in the tests, within a few ulps.
+
+// a and b are equal within n ulps (relative to the larger of the two).
+    bool
+within_ulps (double a, double b, double n)
+{
+    if (a == b)
+    {
+        return true;
+    }
+    return std::abs (a - b)
+        <= n * std::numeric_limits <double>::epsilon ()
+            * std::max (std::abs (a), std::abs (b));
+}
+
+// The tolerance of the derivatives.
+    constexpr double
+ulps = 4;
+
+// The value of x, which the compiler cannot know: the results are computed at
+// run time, as in the std:: functions they are compared with.
+    double
+opaque (double x)
+{
+        volatile double
+    v = x;
+    return v;
+}
+
+    namespace
+function_checks
+{
+    // The argument number I of the function: the independent variable number
+    // I if bit I of Mask is set, the double x otherwise.
+        template <unsigned Mask, std::size_t I, std::size_t K>
+        auto
+    argument (double x)
+    {
+        if constexpr ((Mask >> I) & 1u)
+        {
+            return independent_variable <K> (x, I);
+        }
+        else
+        {
+            return x;
+        }
+    }
+
+    // Checks f at x, with the arguments selected by Mask being duals and the
+    // others doubles: partials are the partial derivatives of f at x.
+        template <unsigned Mask, class F, std::size_t K, std::size_t... I>
+        void
+    check_function_mask (
+          F f
+        , std::array <double, K> const& x
+        , std::array <double, K> const& partials
+        , std::index_sequence <I...>
+    ){
+        INFO ("Duals: mask ", Mask);
+            const auto
+        r = f (argument <Mask, I, K> (x[I])...);
+        CHECK(r.value == f (x[I]...));
+        for (std::size_t i = 0; i < K; ++i)
+        {
+            INFO ("Partial derivative ", i, ": ", r.differentials[i], " expected ", (((Mask >> i) & 1u) ? partials[i] : 0.));
+            if ((Mask >> i) & 1u)
+            {
+                CHECK(within_ulps (r.differentials[i], partials[i], ulps));
+            }
+            else
+            {
+                CHECK(r.differentials[i] == 0);
+            }
+        }
+    }
+
+        template <class F, std::size_t K, std::size_t... M>
+        void
+    check_function_all_masks (
+          F f
+        , std::array <double, K> const& x
+        , std::array <double, K> const& partials
+        , std::index_sequence <M...>
+    ){
+        // Mask 0, where no argument is a dual, is not checked.
+        (check_function_mask <M + 1> (
+              f
+            , x
+            , partials
+            , std::make_index_sequence <K> {}
+        ), ...);
+    }
+} // namespace function_checks
+
+// Checks f, a function of K arguments, at x, with partials its partial
+// derivatives there: with each combination of duals and doubles as arguments.
+    template <class F, std::size_t K>
+    void
+check_function (
+      F f
+    , std::array <double, K> const& x
+    , std::array <double, K> const& partials
+){
+    INFO ("At x[0] = ", x[0]);
+    function_checks::check_function_all_masks (
+          f
+        , x
+        , partials
+        , std::make_index_sequence <(1u << K) - 1> {}
+    );
+}
+
+// Checks f, a function of one argument, at each of the points, with derivative
+// its derivative: with an independent variable as argument, and with a dual
+// whose differentials are not all zero or one, for the chain rule.
+    template <class F, class D>
+    void
+check_unary_function (F f, D derivative, std::initializer_list <double> points)
+{
+    for (auto const point: points)
+    {
+            const auto
+        x = opaque (point);
+        check_function (f, std::array { x }, std::array { derivative (x) });
+        INFO ("At x = ", x, ", with differentials { 2, -3 }");
+            const auto
+        r = f (dual_t <2> { x, { 2., -3. } });
+        CHECK(r.value == f (x));
+        CHECK(within_ulps (r.differentials[0],  2 * derivative (x), ulps));
+        CHECK(within_ulps (r.differentials[1], -3 * derivative (x), ulps));
+    }
+}
+
+// The functions to check, callable with doubles and with duals.
+#define FUNCTION(name) \
+    [] (auto const&... arguments) { using std::name; return name (arguments...); }
+
 
 TEST_CASE("automatic_differentiation.hpp")
 {
@@ -222,278 +370,222 @@ SUBCASE("Arithmetic, two values")
         CHECK(f.differentials[1] == -2. / 9);
     }
 }
-SUBCASE("Functions, one value")
+SUBCASE("Functions of one argument")
 {
         const auto
-    x = independent_variable <1> (0.5, 0);
+    inverse_sqrt_one_minus_square = [] (double x)
     {
-            const auto
-        f = acos (x);
-        CHECK(f.value == std::acos (x.value));
-        CHECK(f.differentials[0] == -1 / sqrt (1 - pow (x.value, 2)));
-    }
-    {
-            const auto
-        f = asin (x);
-        CHECK(f.value == std::asin (x.value));
-        CHECK(f.differentials[0] == 1 / sqrt (1 - pow (x.value, 2)));
-    }
-    {
-            const auto
-        f = atan (x);
-        CHECK(f.value == std::atan (x.value));
-        CHECK(f.differentials[0] == 1 / (1 + pow (x.value, 2)));
-    }
-    {
-            const auto
-        f = cos (x);
-        CHECK(f.value == std::cos (x.value));
-        CHECK(f.differentials[0] == -std::sin (x.value));
-    }
-    {
-            const auto
-        f = sin (x);
-        CHECK(f.value == std::sin (x.value));
-        CHECK(f.differentials[0] == std::cos (x.value));
-    }
-    {
-            const auto
-        f = tan (x);
-        CHECK(f.value == std::tan (x.value));
-        CHECK(f.differentials[0] == 1 + f.value * f.value);
-    }
+        return 1 / std::sqrt ((1 - x) * (1 + x));
+    };
         const auto
-    y = independent_variable <1> (2, 0);
+    sign = [] (double x)
     {
-            const auto
-        f = acosh (y);
-        CHECK(f.value == std::acosh (y.value));
-        CHECK(f.differentials[0] == 1 / sqrt (pow (y.value, 2) - 1));
+        return x < 0 ? -1. : 1.;
+    };
+    SUBCASE("acos")
+    {
+        check_unary_function (FUNCTION (acos), [&] (double x)
+        {
+            return -inverse_sqrt_one_minus_square (x);
+        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
     }
+    SUBCASE("asin")
     {
-            const auto
-        f = asinh (y);
-        CHECK(f.value == std::asinh (y.value));
-        CHECK(f.differentials[0] == 1 / sqrt (pow (y.value, 2) + 1));
+        check_unary_function (FUNCTION (asin), inverse_sqrt_one_minus_square
+            , { -0.9, -0.5, 0.1, 0.5, 0.9 });
     }
+    SUBCASE("atan")
     {
-            const auto
-        f = atanh (x);
-        CHECK(f.value == std::atanh (x.value));
-        CHECK(f.differentials[0] == 1 / (1 - pow (x.value, 2)));
+        check_unary_function (FUNCTION (atan), [] (double x)
+        {
+            return 1 / (1 + x * x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("cos")
     {
-            const auto
-        f = cosh (x);
-        CHECK(f.value == std::cosh (x.value));
-        CHECK(f.differentials[0] == std::sinh (x.value));
+        check_unary_function (FUNCTION (cos), [] (double x)
+        {
+            return -std::sin (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("sin")
     {
-            const auto
-        f = sinh (x);
-        CHECK(f.value == std::sinh (x.value));
-        CHECK(f.differentials[0] == std::cosh (x.value));
+        check_unary_function (FUNCTION (sin), [] (double x)
+        {
+            return std::cos (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("tan")
     {
-            const auto
-        f = tanh (x);
-        CHECK(f.value == std::tanh (x.value));
-        CHECK(f.differentials[0] == 1 - f.value * f.value);
+        check_unary_function (FUNCTION (tan), [] (double x)
+        {
+            return 1 / (std::cos (x) * std::cos (x));
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("acosh")
     {
-            const auto
-        f = exp (x);
-        CHECK(f.value == std::exp (x.value));
-        CHECK(f.differentials[0] == f.value);
+        check_unary_function (FUNCTION (acosh), [] (double x)
+        {
+            return 1 / std::sqrt ((x - 1) * (x + 1));
+        }, { 1.5, 2, 10 });
     }
+    SUBCASE("asinh")
     {
-            const auto
-        f = exp2 (x);
-        CHECK(f.value == std::exp2 (x.value));
-        CHECK(f.differentials[0] == f.value * std::numbers::ln2);
+        check_unary_function (FUNCTION (asinh), [] (double x)
+        {
+            return 1 / std::sqrt (x * x + 1);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("atanh")
     {
-            const auto
-        f = expm1 (x);
-        CHECK(f.value == std::expm1 (x.value));
-        CHECK(f.differentials[0] == f.value + 1);
+        check_unary_function (FUNCTION (atanh), [] (double x)
+        {
+            return 1 / ((1 - x) * (1 + x));
+        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
     }
+    SUBCASE("cosh")
     {
-            const auto
-        f = log (x);
-        CHECK(f.value == std::log (x.value));
-        CHECK(f.differentials[0] == 1 / x.value);
+        check_unary_function (FUNCTION (cosh), [] (double x)
+        {
+            return std::sinh (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("sinh")
     {
-            const auto
-        f = log10 (x);
-        CHECK(f.value == std::log10 (x.value));
-        CHECK(f.differentials[0] == 1 / x.value / std::numbers::ln10);
+        check_unary_function (FUNCTION (sinh), [] (double x)
+        {
+            return std::cosh (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("tanh")
     {
-            const auto
-        f = log1p (x);
-        CHECK(f.value == std::log1p (x.value));
-        CHECK(f.differentials[0] == 1 / (x.value + 1));
+        check_unary_function (FUNCTION (tanh), [] (double x)
+        {
+            return 1 / (std::cosh (x) * std::cosh (x));
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("exp")
     {
-            const auto
-        f = log2 (x);
-        CHECK(f.value == std::log2 (x.value));
-        CHECK(f.differentials[0] == 1 / x.value / std::numbers::ln2);
+        check_unary_function (FUNCTION (exp), [] (double x)
+        {
+            return std::exp (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("exp2")
     {
-            const auto
-        f = cbrt (x);
-        CHECK(f.value == std::cbrt (x.value));
-        CHECK(f.differentials[0] == 1. / 3 / pow (x.value, -2. / 3));
+        check_unary_function (FUNCTION (exp2), [] (double x)
+        {
+            return std::exp2 (x) * std::numbers::ln2;
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("expm1")
     {
-            const auto
-        f = abs (x);
-        CHECK(f.value == std::abs (x.value));
-        CHECK(f.differentials[0] == 1);
+        check_unary_function (FUNCTION (expm1), [] (double x)
+        {
+            return std::exp (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
     }
+    SUBCASE("log")
     {
-            const auto
-        f = fabs (x);
-        CHECK(f.value == std::fabs (x.value));
-        CHECK(f.differentials[0] == 1);
+        check_unary_function (FUNCTION (log), [] (double x)
+        {
+            return 1 / x;
+        }, { 0.1, 0.5, 2, 10 });
     }
+    SUBCASE("log10")
     {
-            const auto
-        f = sqrt (x);
-        CHECK(f.value == std::sqrt (x.value));
-        CHECK(f.differentials[0] == 1. / 2 / f.value);
+        check_unary_function (FUNCTION (log10), [] (double x)
+        {
+            return 1 / (x * std::numbers::ln10);
+        }, { 0.1, 0.5, 2, 10 });
+    }
+    SUBCASE("log1p")
+    {
+        check_unary_function (FUNCTION (log1p), [] (double x)
+        {
+            return 1 / (1 + x);
+        }, { -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("log2")
+    {
+        check_unary_function (FUNCTION (log2), [] (double x)
+        {
+            return 1 / (x * std::numbers::ln2);
+        }, { 0.1, 0.5, 2, 10 });
+    }
+    SUBCASE("cbrt")
+    {
+        check_unary_function (FUNCTION (cbrt), [] (double x)
+        {
+            return 1 / (3 * std::cbrt (x) * std::cbrt (x));
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("abs")
+    {
+        check_unary_function (FUNCTION (abs), sign, { -2, -0.5, 0.5, 2 });
+    }
+    SUBCASE("fabs")
+    {
+        check_unary_function (FUNCTION (fabs), sign, { -2, -0.5, 0.5, 2 });
+    }
+    SUBCASE("sqrt")
+    {
+        check_unary_function (FUNCTION (sqrt), [] (double x)
+        {
+            return 1 / (2 * std::sqrt (x));
+        }, { 0.1, 0.5, 2, 10 });
     }
 }
-SUBCASE("Functions, two values")
+SUBCASE("Functions of two arguments")
 {
-        const auto
-    x = independent_variable <2> (2, 0);
-        const auto
-    y = independent_variable <2> (3, 1);
+    SUBCASE("atan2")
     {
-            const auto
-        f = atan2 (y, x);
-        CHECK(f.value == std::atan2 (y.value, x.value));
-        CHECK(f.differentials[0] == -3. / (4 + 9));
-        CHECK(f.differentials[1] == 2. / (4 + 9));
+        for (auto const [y, x]: { std::pair { 3., 2. }, { 0.5, -1. }, { -2., 0.5 } })
+        {
+                const auto
+            r2 = opaque (x * x + y * y);
+            check_function (FUNCTION (atan2)
+                , std::array { opaque (y), opaque (x) }
+                , std::array { x / r2, -y / r2 }
+            );
+        }
     }
+    SUBCASE("hypot")
     {
-            const auto
-        f = atan2 (y, 2);
-        CHECK(f.value == std::atan2 (y.value, 2));
-        CHECK(f.differentials[0] == 0);
-        CHECK(f.differentials[1] == 2. / (4 + 9));
+        for (auto const [x, y]: { std::pair { 2., 3. }, { -1., 0.5 }, { 0.5, -2. } })
+        {
+                const auto
+            h = std::hypot (opaque (x), opaque (y));
+            check_function (FUNCTION (hypot)
+                , std::array { opaque (x), opaque (y) }
+                , std::array { x / h, y / h }
+            );
+        }
     }
+    SUBCASE("pow")
     {
-            const auto
-        f = atan2 (3, x);
-        CHECK(f.value == std::atan2 (3, x.value));
-        CHECK(f.differentials[0] == -3. / (4 + 9));
-        CHECK(f.differentials[1] == 0);
-    }
-    {
-            const auto
-        f = hypot (x, y);
-        CHECK(f.value == std::hypot (x.value, y.value));
-        CHECK(f.differentials[0] == x.value / f.value);
-        CHECK(f.differentials[1] == y.value / f.value);
-    }
-    {
-            const auto
-        f = hypot (x, 1);
-        CHECK(f.value == std::hypot (x.value, 1));
-        CHECK(f.differentials[0] == x.value / f.value);
-        CHECK(f.differentials[1] == 0);
-    }
-    {
-            const auto
-        f = hypot (2, y);
-        CHECK(f.value == std::hypot (2, y.value));
-        CHECK(f.differentials[0] == 0);
-        CHECK(f.differentials[1] == y.value / f.value);
-    }
-    {
-            const auto
-        f = pow (x, y);
-        CHECK(f.value == std::pow (x.value, y.value));
-        CHECK(f.differentials[0] == y.value * pow (x.value, y.value - 1));
-        CHECK(f.differentials[1] == f.value * std::log (x.value));
-    }
-    {
-            const auto
-        f = pow (x, 3);
-        CHECK(f.value == std::pow (x.value, 3));
-        CHECK(f.differentials[0] == 3 * pow (x.value, 2));
-        CHECK(f.differentials[1] == 0);
-    }
-    {
-            const auto
-        f = pow (2, y);
-        CHECK(f.value == std::pow (x.value, y.value));
-        CHECK(f.differentials[0] == 0);
-        CHECK(f.differentials[1] == f.value * std::log (x.value));
+        for (auto const [x, y]: { std::pair { 2., 3. }, { 0.5, -1.5 }, { 3., 0.5 } })
+        {
+                const auto
+            p = std::pow (opaque (x), opaque (y));
+            check_function (FUNCTION (pow)
+                , std::array { opaque (x), opaque (y) }
+                , std::array { y * std::pow (x, y - 1), p * std::log (x) }
+            );
+        }
     }
 }
-SUBCASE("Functions, three values")
+SUBCASE("Functions of three arguments")
 {
-        const auto
-    x = independent_variable <3> (2, 0);
-        const auto
-    y = independent_variable <3> (1, 1);
-        const auto
-    z = independent_variable <3> (3, 2);
+    SUBCASE("hypot")
     {
             const auto
-        f = hypot (x, y, z);
-        CHECK(f.value == std::hypot (x.value, y.value, z.value));
-        CHECK(f.differentials[0] == x.value / f.value);
-        CHECK(f.differentials[1] == y.value / f.value);
-        CHECK(f.differentials[2] == z.value / f.value);
-    }{
+        x = std::array { opaque (2.), opaque (-1.), opaque (3.) };
             const auto
-        f = hypot (2, y, z);
-        CHECK(f.value == std::hypot (2, y.value, z.value));
-        CHECK(f.differentials[0] == 0);
-        CHECK(f.differentials[1] == y.value / f.value);
-        CHECK(f.differentials[2] == z.value / f.value);
-    }{
-            const auto
-        f = hypot (x, 1, z);
-        CHECK(f.value == std::hypot (x.value, 1, z.value));
-        CHECK(f.differentials[0] == x.value / f.value);
-        CHECK(f.differentials[1] == 0);
-        CHECK(f.differentials[2] == z.value / f.value);
-    }{
-            const auto
-        f = hypot (x, y, 3);
-        CHECK(f.value == std::hypot (x.value, y.value, 3));
-        CHECK(f.differentials[0] == x.value / f.value);
-        CHECK(f.differentials[1] == y.value / f.value);
-        CHECK(f.differentials[2] == 0);
-    }{
-            const auto
-        f = hypot (2, 1, z);
-        CHECK(f.value == std::hypot (2, 1, z.value));
-        CHECK(f.differentials[0] == 0);
-        CHECK(f.differentials[1] == 0);
-        CHECK(f.differentials[2] == z.value / f.value);
-    }{
-            const auto
-        f = hypot (x, 1, 3);
-        CHECK(f.value == std::hypot (x.value, 1, 3));
-        CHECK(f.differentials[0] == x.value / f.value);
-        CHECK(f.differentials[1] == 0);
-        CHECK(f.differentials[2] == 0);
-    }{
-            const auto
-        f = hypot (2, y, 3);
-        CHECK(f.value == std::hypot (2, y.value, 3));
-        CHECK(f.differentials[0] == 0);
-        CHECK(f.differentials[1] == y.value / f.value);
-        CHECK(f.differentials[2] == 0);
+        h = std::hypot (x[0], x[1], x[2]);
+        check_function (FUNCTION (hypot), x
+            , std::array { x[0] / h, x[1] / h, x[2] / h }
+        );
     }
 }
 SUBCASE("Polynomials")

@@ -430,10 +430,12 @@ detail
         auto
     cbrt (dual_t <N, T> const& a)
     {
-            using std::cbrt, std::pow;
+            using std::cbrt;
+            const auto
+        tmp = cbrt (a.value);
         return dual_t { 
-              cbrt (a.value)
-            , a.differentials / 3. / pow (a.value, -2. / 3) 
+              tmp
+            , a.differentials / (3 * tmp * tmp)
         };
     }
         template <std::size_t N, class T>
