@@ -66,530 +66,530 @@ detail
 // Comparisons compare the values only, like those of a number, so that code
 // branching on a dual takes the same branch as with its value. The operators
 // with a scalar on the left are rewritten from these ones.
-        template <std::size_t N, class T, class U>
-        requires requires (T const& t, U const& u) 
-        {
-            { t == u } -> std::convertible_to <bool>;
-        }
-        constexpr bool
-    operator == (dual_t <N, T> const& a, dual_t <N, U> const& b)
+    template <std::size_t N, class T, class U>
+    requires requires (T const& t, U const& u) 
     {
-        return a.value == b.value;
+        { t == u } -> std::convertible_to <bool>;
     }
-        template <std::size_t N, class T, class U>
-        requires (not detail::is_dual <U>) 
-        and requires (T const& t, U const& u) 
-        {
-            { t == u } -> std::convertible_to <bool>;
-        }
-        constexpr bool
-    operator == (dual_t <N, T> const& a, U const& b)
+    constexpr bool
+operator == (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+    return a.value == b.value;
+}
+    template <std::size_t N, class T, class U>
+    requires (not detail::is_dual <U>) 
+    and requires (T const& t, U const& u) 
     {
-        return a.value == b;
+        { t == u } -> std::convertible_to <bool>;
     }
-        template <std::size_t N, class T, class U>
-        requires requires (T const& t, U const& u) { t <=> u; }
-        constexpr auto
-    operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-        return a.value <=> b.value;
-    }
-        template <std::size_t N, class T, class U>
-        requires (not detail::is_dual <U>) 
-        and requires (T const& t, U const& u) { t <=> u; }
-        constexpr auto
-    operator <=> (dual_t <N, T> const& a, U const& b)
-    {
-        return a.value <=> b;
-    }
+    constexpr bool
+operator == (dual_t <N, T> const& a, U const& b)
+{
+    return a.value == b;
+}
+    template <std::size_t N, class T, class U>
+    requires requires (T const& t, U const& u) { t <=> u; }
+    constexpr auto
+operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+    return a.value <=> b.value;
+}
+    template <std::size_t N, class T, class U>
+    requires (not detail::is_dual <U>) 
+    and requires (T const& t, U const& u) { t <=> u; }
+    constexpr auto
+operator <=> (dual_t <N, T> const& a, U const& b)
+{
+    return a.value <=> b;
+}
 
-        template <std::size_t N, class T>
-        auto
-    operator + (dual_t <N, T> a)
-    {
-        return a;
-    }
-        template <std::size_t N, class T>
-        auto
-    operator - (dual_t <N, T> const& a)
-    {
-        return dual_t { -a.value, -a.differentials };
-    }
+    template <std::size_t N, class T>
+    auto
+operator + (dual_t <N, T> a)
+{
+    return a;
+}
+    template <std::size_t N, class T>
+    auto
+operator - (dual_t <N, T> const& a)
+{
+    return dual_t { -a.value, -a.differentials };
+}
 
-        template <std::size_t N, class T, class U>
-        auto
-    operator + (dual_t <N, T> const& a, U const& b)
-    {
-        return dual_t { a.value + b, a.differentials };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator + (U const& a, dual_t <N, T> const& b)
-    {
-        return dual_t { a + b.value, b.differentials };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-        return dual_t { 
-              a.value + b.value
-            , a.differentials + b.differentials 
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto&
-    operator += (dual_t <N, T>& a, U const& b)
-    {
-        a.value += b;
-        return a;
-    }
+    template <std::size_t N, class T, class U>
+    auto
+operator + (dual_t <N, T> const& a, U const& b)
+{
+    return dual_t { a.value + b, a.differentials };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator + (U const& a, dual_t <N, T> const& b)
+{
+    return dual_t { a + b.value, b.differentials };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+    return dual_t { 
+          a.value + b.value
+        , a.differentials + b.differentials 
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto&
+operator += (dual_t <N, T>& a, U const& b)
+{
+    a.value += b;
+    return a;
+}
 
-        template <std::size_t N, class T, class U>
-        auto
-    operator - (dual_t <N, T> const& a, U const& b)
-    {
-        return dual_t { a.value - b, a.differentials };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator - (U const& a, dual_t <N, T> const& b)
-    {
-        return dual_t { a - b.value, -b.differentials };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-        return dual_t { 
-              a.value - b.value
-            , a.differentials - b.differentials 
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto&
-    operator -= (dual_t <N, T>& a, U const& b)
-    {
-        a.value -= b;
-        return a;
-    }
+    template <std::size_t N, class T, class U>
+    auto
+operator - (dual_t <N, T> const& a, U const& b)
+{
+    return dual_t { a.value - b, a.differentials };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator - (U const& a, dual_t <N, T> const& b)
+{
+    return dual_t { a - b.value, -b.differentials };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+    return dual_t { 
+          a.value - b.value
+        , a.differentials - b.differentials 
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto&
+operator -= (dual_t <N, T>& a, U const& b)
+{
+    a.value -= b;
+    return a;
+}
 
-        template <std::size_t N, class T, class U>
-        auto
-    operator * (dual_t <N, T> const& a, U const& b)
-    {
-        return dual_t { a.value * b, a.differentials * b };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator * (U const& a, dual_t <N, T> const& b)
-    {
-        return dual_t { a * b.value, b.differentials * a };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator * (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-        return dual_t { 
-              a.value * b.value
-            , a.differentials * b.value + b.differentials * a.value 
-        };
-    }
+    template <std::size_t N, class T, class U>
+    auto
+operator * (dual_t <N, T> const& a, U const& b)
+{
+    return dual_t { a.value * b, a.differentials * b };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator * (U const& a, dual_t <N, T> const& b)
+{
+    return dual_t { a * b.value, b.differentials * a };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator * (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+    return dual_t { 
+          a.value * b.value
+        , a.differentials * b.value + b.differentials * a.value 
+    };
+}
 
-        template <std::size_t N, class T, class U>
-        auto
-    operator / (dual_t <N, T> const& a, U const& b)
-    {
-        return dual_t { 
-              a.value / b
-            , a.differentials / b 
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator / (U const& a, dual_t <N, T> const& b)
-    {
-        return dual_t { 
-              a / b.value
-            , -b.differentials * a / b.value / b.value
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator / (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-        return dual_t { 
-              a.value / b.value
-            , (
-                  a.differentials * b.value 
-                - b.differentials * a.value
-              ) / b.value / b.value 
-        };
-    }
+    template <std::size_t N, class T, class U>
+    auto
+operator / (dual_t <N, T> const& a, U const& b)
+{
+    return dual_t { 
+          a.value / b
+        , a.differentials / b 
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator / (U const& a, dual_t <N, T> const& b)
+{
+    return dual_t { 
+          a / b.value
+        , -b.differentials * a / b.value / b.value
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+operator / (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+    return dual_t { 
+          a.value / b.value
+        , (
+              a.differentials * b.value 
+            - b.differentials * a.value
+          ) / b.value / b.value 
+    };
+}
 
-        template <std::size_t N, class T>
-        auto
-    acos (dual_t <N, T> const& a)
-    {
-            using std::acos, std::sqrt;
-        // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
-        return dual_t { 
-              acos (a.value)
-            , -a.differentials / sqrt ((1 - a.value) * (1 + a.value)) };
-    }
-        template <std::size_t N, class T>
-        auto
-    asin (dual_t <N, T> const& a)
-    {
-            using std::asin, std::sqrt;
-        // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
-        return dual_t { 
-              asin (a.value)
-            , a.differentials / sqrt ((1 - a.value) * (1 + a.value)) };
-    }
-        template <std::size_t N, class T>
-        auto
-    atan (dual_t <N, T> const& a)
-    {
-            using std::atan;
-        return dual_t { 
-              atan (a.value)
-            , a.differentials / (1 + a.value * a.value) };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    atan2 (dual_t <N, T> const& y, dual_t <N, U> const& x)
-    {
-            using std::atan2;
-            const auto
-        tmp = x.value * x.value + y.value * y.value;
-        return dual_t { 
-              atan2 (y.value, x.value)
-            , -x.differentials * y.value / tmp 
-             + y.differentials * x.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    atan2 (dual_t <N, T> const& y, U const& x)
-    {
-            using std::atan2;
-        return dual_t { 
-              atan2 (y.value, x)
-            , y.differentials * x / (x * x + y.value * y.value)
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    atan2 (U const& y, dual_t <N, T> const& x)
-    {
-            using std::atan2;
-        return dual_t { 
-              atan2 (y, x.value)
-            , -x.differentials * y / (x.value * x.value + y * y)
-        };
-    }
-        template <std::size_t N, class T>
-        auto
-    cos (dual_t <N, T> const& a)
-    {
-            using std::cos, std::sin;
-        return dual_t { cos (a.value), -a.differentials * sin (a.value) };
-    }
-        template <std::size_t N, class T>
-        auto
-    sin (dual_t <N, T> const& a)
-    {
-            using std::sin, std::cos;
-        return dual_t { sin (a.value), a.differentials * cos (a.value) };
-    }
-        template <std::size_t N, class T>
-        auto
-    tan (dual_t <N, T> const& a)
-    {
-            using std::tan;
-            const auto
-        tmp = tan (a.value);
-        return dual_t { tmp, a.differentials * (1 + tmp * tmp) };
-    }
-        template <std::size_t N, class T>
-        auto
-    acosh (dual_t <N, T> const& a)
-    {
-            using std::acosh, std::sqrt;
-        // (x - 1) (x + 1) rather than x^2 - 1, which cancels near x = 1.
-        return dual_t { 
-              acosh (a.value)
-            , a.differentials / sqrt ((a.value - 1) * (a.value + 1)) };
-    }
-        template <std::size_t N, class T>
-        auto
-    asinh (dual_t <N, T> const& a)
-    {
-            using std::asinh, std::sqrt;
-        return dual_t { 
-              asinh (a.value)
-            , a.differentials / sqrt (1 + a.value * a.value) };
-    }
-        template <std::size_t N, class T>
-        auto
-    atanh (dual_t <N, T> const& a)
-    {
-            using std::atanh;
-        // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
-        return dual_t { 
-              atanh (a.value)
-            , a.differentials / ((1 - a.value) * (1 + a.value)) };
-    }
-        template <std::size_t N, class T>
-        auto
-    cosh (dual_t <N, T> const& a)
-    {
-            using std::cosh, std::sinh;
-        return dual_t { cosh (a.value), a.differentials * sinh (a.value) };
-    }
-        template <std::size_t N, class T>
-        auto
-    sinh (dual_t <N, T> const& a)
-    {
-            using std::sinh, std::cosh;
-        return dual_t { sinh (a.value), a.differentials * cosh (a.value) };
-    }
-        template <std::size_t N, class T>
-        auto
-    tanh (dual_t <N, T> const& a)
-    {
-            using std::tanh, std::cosh;
-        // 1 / cosh^2 rather than 1 - tanh^2, which cancels for large |x|, and
-        // squaring 1 / cosh rather than cosh, which would overflow first.
-            const auto
-        tmp = 1 / cosh (a.value);
-        return dual_t { tanh (a.value), a.differentials * tmp * tmp };
-    }
-        template <std::size_t N, class T>
-        auto
-    exp (dual_t <N, T> const& a)
-    {
-            using std::exp;
-            const auto
-        tmp = exp (a.value);
-        return dual_t { tmp, a.differentials * tmp };
-    }
-        template <std::size_t N, class T>
-        auto
-    exp2 (dual_t <N, T> const& a)
-    {
-            using std::exp2;
-            const auto
-        tmp = exp2 (a.value);
-        return dual_t { tmp, a.differentials * tmp * std::numbers::ln2_v <T> };
-    }
-        template <std::size_t N, class T>
-        auto
-    expm1 (dual_t <N, T> const& a)
-    {
-            using std::expm1, std::exp;
-        return dual_t { expm1 (a.value), a.differentials * exp (a.value) };
-    }
-    // double frexp(double value, int* exp);
-    // int ilogb(double x);
-    // double ldexp(double x, int exp);
-        template <std::size_t N, class T>
-        auto
-    log (dual_t <N, T> const& a)
-    {
-            using std::log;
-        return dual_t { log (a.value), a.differentials / a.value };
-    }
-        template <std::size_t N, class T>
-        auto
-    log10 (dual_t <N, T> const& a)
-    {
-            using std::log10;
-        return dual_t { 
-              log10 (a.value)
-            , a.differentials / a.value / std::numbers::ln10_v <T> 
-        };
-    }
-        template <std::size_t N, class T>
-        auto
-    log1p (dual_t <N, T> const& a)
-    {
-            using std::log1p;
-        return dual_t { log1p (a.value), a.differentials / (a.value + 1) };
-    }
-        template <std::size_t N, class T>
-        auto
-    log2 (dual_t <N, T> const& a)
-    {
-            using std::log2;
-        return dual_t { 
-              log2 (a.value)
-            , a.differentials / a.value / std::numbers::ln2_v <T> 
-        };
-    }
-    // double logb(double x);
-    // double modf(double value, double* iptr);
-    // double scalbn(double x, int n);
-    // double scalbln(double x, long int n);
-        template <std::size_t N, class T>
-        auto
-    cbrt (dual_t <N, T> const& a)
-    {
-            using std::cbrt;
-            const auto
-        tmp = cbrt (a.value);
-        return dual_t { 
-              tmp
-            , a.differentials / (3 * tmp * tmp)
-        };
-    }
-        template <std::size_t N, class T>
-        auto
-    abs (dual_t <N, T> const& a)
-    {
-            using std::abs, std::copysign;
-        return dual_t { 
-              abs (a.value)
-            , a.differentials * copysign (T { 1 }, a.value)
-        };
-    }
-        template <std::size_t N, class T>
-        auto
-    fabs (dual_t <N, T> const& a)
-    {
-            using std::fabs, std::copysign;
-        return dual_t { 
-              fabs (a.value)
-            , a.differentials * copysign (T { 1 }, a.value)
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    hypot (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a.value, b.value);
-        return dual_t { 
-              tmp
-            , a.differentials * a.value / tmp
-            + b.differentials * b.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    hypot (dual_t <N, T> const& a, U const& b)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a.value, b);
-        return dual_t { 
-              tmp
-            , a.differentials * a.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    hypot (U const& a, dual_t <N, T> const& b)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a, b.value);
-        return dual_t { 
-              tmp
-            , b.differentials * b.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a.value, b.value, c.value);
-        return dual_t { 
-              tmp
-            , a.differentials * a.value / tmp
-            + b.differentials * b.value / tmp
-            + c.differentials * c.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a.value, b.value, c);
-        return dual_t { 
-              tmp
-            , a.differentials * a.value / tmp
-            + b.differentials * b.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a.value, b, c.value);
-        return dual_t { 
-              tmp
-            , a.differentials * a.value / tmp
-            + c.differentials * c.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a, b.value, c.value);
-        return dual_t { 
-              tmp
-            , b.differentials * b.value / tmp
-            + c.differentials * c.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (T const& a, U const& b, dual_t <N, V> const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a, b, c.value);
-        return dual_t { 
-              tmp
-            , c.differentials * c.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (dual_t <N, T> const& a, U const& b, V const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a.value, b, c);
-        return dual_t { 
-              tmp
-            , a.differentials * a.value / tmp
-        };
-    }
-        template <std::size_t N, class T, class U, class V>
-        auto
-    hypot (T const& a, dual_t <N, U> const& b, V const& c)
-    {
-            using std::hypot;
-            const auto
-        tmp = hypot (a, b.value, c);
-        return dual_t { 
-              tmp
-            , b.differentials * b.value / tmp
-        };
-    }
+    template <std::size_t N, class T>
+    auto
+acos (dual_t <N, T> const& a)
+{
+        using std::acos, std::sqrt;
+    // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
+    return dual_t { 
+          acos (a.value)
+        , -a.differentials / sqrt ((1 - a.value) * (1 + a.value)) };
+}
+    template <std::size_t N, class T>
+    auto
+asin (dual_t <N, T> const& a)
+{
+        using std::asin, std::sqrt;
+    // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
+    return dual_t { 
+          asin (a.value)
+        , a.differentials / sqrt ((1 - a.value) * (1 + a.value)) };
+}
+    template <std::size_t N, class T>
+    auto
+atan (dual_t <N, T> const& a)
+{
+        using std::atan;
+    return dual_t { 
+          atan (a.value)
+        , a.differentials / (1 + a.value * a.value) };
+}
+    template <std::size_t N, class T, class U>
+    auto
+atan2 (dual_t <N, T> const& y, dual_t <N, U> const& x)
+{
+        using std::atan2;
+        const auto
+    tmp = x.value * x.value + y.value * y.value;
+    return dual_t { 
+          atan2 (y.value, x.value)
+        , -x.differentials * y.value / tmp 
+         + y.differentials * x.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+atan2 (dual_t <N, T> const& y, U const& x)
+{
+        using std::atan2;
+    return dual_t { 
+          atan2 (y.value, x)
+        , y.differentials * x / (x * x + y.value * y.value)
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+atan2 (U const& y, dual_t <N, T> const& x)
+{
+        using std::atan2;
+    return dual_t { 
+          atan2 (y, x.value)
+        , -x.differentials * y / (x.value * x.value + y * y)
+    };
+}
+    template <std::size_t N, class T>
+    auto
+cos (dual_t <N, T> const& a)
+{
+        using std::cos, std::sin;
+    return dual_t { cos (a.value), -a.differentials * sin (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+sin (dual_t <N, T> const& a)
+{
+        using std::sin, std::cos;
+    return dual_t { sin (a.value), a.differentials * cos (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+tan (dual_t <N, T> const& a)
+{
+        using std::tan;
+        const auto
+    tmp = tan (a.value);
+    return dual_t { tmp, a.differentials * (1 + tmp * tmp) };
+}
+    template <std::size_t N, class T>
+    auto
+acosh (dual_t <N, T> const& a)
+{
+        using std::acosh, std::sqrt;
+    // (x - 1) (x + 1) rather than x^2 - 1, which cancels near x = 1.
+    return dual_t { 
+          acosh (a.value)
+        , a.differentials / sqrt ((a.value - 1) * (a.value + 1)) };
+}
+    template <std::size_t N, class T>
+    auto
+asinh (dual_t <N, T> const& a)
+{
+        using std::asinh, std::sqrt;
+    return dual_t { 
+          asinh (a.value)
+        , a.differentials / sqrt (1 + a.value * a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+atanh (dual_t <N, T> const& a)
+{
+        using std::atanh;
+    // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
+    return dual_t { 
+          atanh (a.value)
+        , a.differentials / ((1 - a.value) * (1 + a.value)) };
+}
+    template <std::size_t N, class T>
+    auto
+cosh (dual_t <N, T> const& a)
+{
+        using std::cosh, std::sinh;
+    return dual_t { cosh (a.value), a.differentials * sinh (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+sinh (dual_t <N, T> const& a)
+{
+        using std::sinh, std::cosh;
+    return dual_t { sinh (a.value), a.differentials * cosh (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+tanh (dual_t <N, T> const& a)
+{
+        using std::tanh, std::cosh;
+    // 1 / cosh^2 rather than 1 - tanh^2, which cancels for large |x|, and
+    // squaring 1 / cosh rather than cosh, which would overflow first.
+        const auto
+    tmp = 1 / cosh (a.value);
+    return dual_t { tanh (a.value), a.differentials * tmp * tmp };
+}
+    template <std::size_t N, class T>
+    auto
+exp (dual_t <N, T> const& a)
+{
+        using std::exp;
+        const auto
+    tmp = exp (a.value);
+    return dual_t { tmp, a.differentials * tmp };
+}
+    template <std::size_t N, class T>
+    auto
+exp2 (dual_t <N, T> const& a)
+{
+        using std::exp2;
+        const auto
+    tmp = exp2 (a.value);
+    return dual_t { tmp, a.differentials * tmp * std::numbers::ln2_v <T> };
+}
+    template <std::size_t N, class T>
+    auto
+expm1 (dual_t <N, T> const& a)
+{
+        using std::expm1, std::exp;
+    return dual_t { expm1 (a.value), a.differentials * exp (a.value) };
+}
+// double frexp(double value, int* exp);
+// int ilogb(double x);
+// double ldexp(double x, int exp);
+    template <std::size_t N, class T>
+    auto
+log (dual_t <N, T> const& a)
+{
+        using std::log;
+    return dual_t { log (a.value), a.differentials / a.value };
+}
+    template <std::size_t N, class T>
+    auto
+log10 (dual_t <N, T> const& a)
+{
+        using std::log10;
+    return dual_t { 
+          log10 (a.value)
+        , a.differentials / a.value / std::numbers::ln10_v <T> 
+    };
+}
+    template <std::size_t N, class T>
+    auto
+log1p (dual_t <N, T> const& a)
+{
+        using std::log1p;
+    return dual_t { log1p (a.value), a.differentials / (a.value + 1) };
+}
+    template <std::size_t N, class T>
+    auto
+log2 (dual_t <N, T> const& a)
+{
+        using std::log2;
+    return dual_t { 
+          log2 (a.value)
+        , a.differentials / a.value / std::numbers::ln2_v <T> 
+    };
+}
+// double logb(double x);
+// double modf(double value, double* iptr);
+// double scalbn(double x, int n);
+// double scalbln(double x, long int n);
+    template <std::size_t N, class T>
+    auto
+cbrt (dual_t <N, T> const& a)
+{
+        using std::cbrt;
+        const auto
+    tmp = cbrt (a.value);
+    return dual_t { 
+          tmp
+        , a.differentials / (3 * tmp * tmp)
+    };
+}
+    template <std::size_t N, class T>
+    auto
+abs (dual_t <N, T> const& a)
+{
+        using std::abs, std::copysign;
+    return dual_t { 
+          abs (a.value)
+        , a.differentials * copysign (T { 1 }, a.value)
+    };
+}
+    template <std::size_t N, class T>
+    auto
+fabs (dual_t <N, T> const& a)
+{
+        using std::fabs, std::copysign;
+    return dual_t { 
+          fabs (a.value)
+        , a.differentials * copysign (T { 1 }, a.value)
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+hypot (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a.value, b.value);
+    return dual_t { 
+          tmp
+        , a.differentials * a.value / tmp
+        + b.differentials * b.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+hypot (dual_t <N, T> const& a, U const& b)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a.value, b);
+    return dual_t { 
+          tmp
+        , a.differentials * a.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U>
+    auto
+hypot (U const& a, dual_t <N, T> const& b)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a, b.value);
+    return dual_t { 
+          tmp
+        , b.differentials * b.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a.value, b.value, c.value);
+    return dual_t { 
+          tmp
+        , a.differentials * a.value / tmp
+        + b.differentials * b.value / tmp
+        + c.differentials * c.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a.value, b.value, c);
+    return dual_t { 
+          tmp
+        , a.differentials * a.value / tmp
+        + b.differentials * b.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a.value, b, c.value);
+    return dual_t { 
+          tmp
+        , a.differentials * a.value / tmp
+        + c.differentials * c.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a, b.value, c.value);
+    return dual_t { 
+          tmp
+        , b.differentials * b.value / tmp
+        + c.differentials * c.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (T const& a, U const& b, dual_t <N, V> const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a, b, c.value);
+    return dual_t { 
+          tmp
+        , c.differentials * c.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (dual_t <N, T> const& a, U const& b, V const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a.value, b, c);
+    return dual_t { 
+          tmp
+        , a.differentials * a.value / tmp
+    };
+}
+    template <std::size_t N, class T, class U, class V>
+    auto
+hypot (T const& a, dual_t <N, U> const& b, V const& c)
+{
+        using std::hypot;
+        const auto
+    tmp = hypot (a, b.value, c);
+    return dual_t { 
+          tmp
+        , b.differentials * b.value / tmp
+    };
+}
 // d pow (a, b) = b pow (a, b - 1) da + pow (a, b) log (a) db. A term whose
 // differential is zero contributes zero, even where its factor is infinite or
 // NaN (log (a) for a <= 0, pow (a, b - 1) for a = 0 and b < 1): a constant
@@ -631,96 +631,96 @@ detail
     }
 } // namespace detail
 
-        template <std::size_t N, class T, class U>
+    template <std::size_t N, class T, class U>
+    auto
+pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
+{
+        using std::pow;
+        using
+    result_t = decltype (pow (a.value, b.value));
+        const auto
+    p = pow (a.value, b.value);
+        const auto
+    partial_a = detail::pow_partial_base (a.value, b.value);
+        const auto
+    partial_b = detail::pow_partial_exponent (a.value, p);
         auto
-    pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
+    r = dual_t <N, result_t> { p };
+    for (std::size_t i = 0; i < N; ++i)
     {
-            using std::pow;
-            using
-        result_t = decltype (pow (a.value, b.value));
-            const auto
-        p = pow (a.value, b.value);
-            const auto
-        partial_a = detail::pow_partial_base (a.value, b.value);
-            const auto
-        partial_b = detail::pow_partial_exponent (a.value, p);
-            auto
-        r = dual_t <N, result_t> { p };
-        for (std::size_t i = 0; i < N; ++i)
+        // The first term is assigned rather than added to the zero of r,
+        // which would turn a -0 into +0.
+        if (a.differentials[i] != 0)
         {
-            // The first term is assigned rather than added to the zero of r,
-            // which would turn a -0 into +0.
-            if (a.differentials[i] != 0)
-            {
-                r.differentials[i] = a.differentials[i] * partial_a;
-                if (b.differentials[i] != 0)
-                {
-                    r.differentials[i] += b.differentials[i] * partial_b;
-                }
-            }
-            else if (b.differentials[i] != 0)
-            {
-                r.differentials[i] = b.differentials[i] * partial_b;
-            }
-        }
-        return r;
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    pow (dual_t <N, T> const& a, U const& b)
-    {
-            using std::pow;
-            using
-        result_t = decltype (pow (a.value, b));
-            const auto
-        p = pow (a.value, b);
-            const auto
-        partial_a = detail::pow_partial_base (a.value, b);
-            auto
-        r = dual_t <N, result_t> { p };
-        for (std::size_t i = 0; i < N; ++i)
-        {
-            if (a.differentials[i] != 0)
-            {
-                r.differentials[i] = a.differentials[i] * partial_a;
-            }
-        }
-        return r;
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    pow (T const& a, dual_t <N, U> const& b)
-    {
-            using std::pow;
-            using
-        result_t = decltype (pow (a, b.value));
-            const auto
-        p = pow (a, b.value);
-            const auto
-        partial_b = detail::pow_partial_exponent (a, p);
-            auto
-        r = dual_t <N, result_t> { p };
-        for (std::size_t i = 0; i < N; ++i)
-        {
+            r.differentials[i] = a.differentials[i] * partial_a;
             if (b.differentials[i] != 0)
             {
-                r.differentials[i] = b.differentials[i] * partial_b;
+                r.differentials[i] += b.differentials[i] * partial_b;
             }
         }
-        return r;
+        else if (b.differentials[i] != 0)
+        {
+            r.differentials[i] = b.differentials[i] * partial_b;
+        }
     }
-        template <std::size_t N, class T>
+    return r;
+}
+    template <std::size_t N, class T, class U>
+    auto
+pow (dual_t <N, T> const& a, U const& b)
+{
+        using std::pow;
+        using
+    result_t = decltype (pow (a.value, b));
+        const auto
+    p = pow (a.value, b);
+        const auto
+    partial_a = detail::pow_partial_base (a.value, b);
         auto
-    sqrt (dual_t <N, T> const& a)
+    r = dual_t <N, result_t> { p };
+    for (std::size_t i = 0; i < N; ++i)
     {
-            using std::sqrt;
-            const auto
-        tmp = sqrt (a.value);
-        return dual_t { 
-              tmp
-            , a.differentials / (2 * tmp)
-        };
+        if (a.differentials[i] != 0)
+        {
+            r.differentials[i] = a.differentials[i] * partial_a;
+        }
     }
+    return r;
+}
+    template <std::size_t N, class T, class U>
+    auto
+pow (T const& a, dual_t <N, U> const& b)
+{
+        using std::pow;
+        using
+    result_t = decltype (pow (a, b.value));
+        const auto
+    p = pow (a, b.value);
+        const auto
+    partial_b = detail::pow_partial_exponent (a, p);
+        auto
+    r = dual_t <N, result_t> { p };
+    for (std::size_t i = 0; i < N; ++i)
+    {
+        if (b.differentials[i] != 0)
+        {
+            r.differentials[i] = b.differentials[i] * partial_b;
+        }
+    }
+    return r;
+}
+    template <std::size_t N, class T>
+    auto
+sqrt (dual_t <N, T> const& a)
+{
+        using std::sqrt;
+        const auto
+    tmp = sqrt (a.value);
+    return dual_t { 
+          tmp
+        , a.differentials / (2 * tmp)
+    };
+}
 } // namespace calculisto::automatic_differentiation
 
 
