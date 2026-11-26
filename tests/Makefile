@@ -1,6 +1,6 @@
 .PHONY: all clean check
 
-CXXFLAGS+=-g -I../git_submodules/calculisto/array/include
+CXXFLAGS+=-g -I../include -I../git_submodules/calculisto/array/include
 LINK.o=$(LINK.cc)
 
 all: check

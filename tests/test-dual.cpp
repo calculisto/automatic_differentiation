@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
     using doctest::Approx;
-#include "../include/calculisto/automatic_differentiation/automatic_differentiation.hpp"
+#include <calculisto/automatic_differentiation/automatic_differentiation.hpp>
     using namespace calculisto::automatic_differentiation;
 #include <concepts>
 

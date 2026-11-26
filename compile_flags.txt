@@ -1,0 +1,9 @@
+-std=c++20
+-Iinclude
+-Ibuild/dev/_deps/calculisto_array-src/include
+-Wall
+-Wextra
+-Wpedantic
+-Wconversion
+-Wshadow
+-Werror
