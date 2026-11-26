@@ -594,11 +594,13 @@ detail
 // differential is zero contributes zero, even where its factor is infinite or
 // NaN (log (a) for a <= 0, pow (a, b - 1) for a = 0 and b < 1): a constant
 // exponent or base gives the same result as a scalar one, e.g. the derivative
-// of pow (x, 2) is -4 at x = -2. The factors are also taken as zero where the
-// mathematical derivative is: b pow (a, b - 1) for b = 0 (pow (a, 0) is
-// constant), and pow (a, b) log (a) where pow (a, b) is zero (a = 0, b > 0).
-// Elsewhere, they follow the mathematics, e.g. d/db pow (a, b) is NaN for
-// a < 0, where pow (a, b) is not real around b, and -inf at a = b = 0.
+// of pow (x, 2) is -4 at x = -2, and -0 at x = -0. The factors are also taken
+// as zero where the mathematical derivative is: b pow (a, b - 1) for b = 0
+// (pow (a, 0) is constant), and pow (a, b) log (a) where pow (a, b) is zero
+// and a is not negative (a = 0 and b > 0, a = +inf and b < 0: pow (a, b) is
+// zero around b). Elsewhere, they follow the mathematics, e.g. d/db pow (a, b)
+// is NaN for a < 0, where pow (a, b) is not real around b, even where
+// pow (a, b) underflows to zero, and -inf at a = b = 0.
     namespace
 detail
 {
@@ -621,7 +623,7 @@ detail
     pow_partial_exponent (T const& a, P const& p)
     {
             using std::log;
-        if (p == 0)
+        if (p == 0 and a >= 0)
         {
             return P {};
         }
@@ -646,13 +648,19 @@ detail
         r = dual_t <N, result_t> { p };
         for (std::size_t i = 0; i < N; ++i)
         {
+            // The first term is assigned rather than added to the zero of r,
+            // which would turn a -0 into +0.
             if (a.differentials[i] != 0)
             {
-                r.differentials[i] += a.differentials[i] * partial_a;
+                r.differentials[i] = a.differentials[i] * partial_a;
+                if (b.differentials[i] != 0)
+                {
+                    r.differentials[i] += b.differentials[i] * partial_b;
+                }
             }
-            if (b.differentials[i] != 0)
+            else if (b.differentials[i] != 0)
             {
-                r.differentials[i] += b.differentials[i] * partial_b;
+                r.differentials[i] = b.differentials[i] * partial_b;
             }
         }
         return r;
@@ -705,7 +713,7 @@ detail
         auto
     sqrt (dual_t <N, T> const& a)
     {
-            using std::sqrt, std::pow;
+            using std::sqrt;
             const auto
         tmp = sqrt (a.value);
         return dual_t { 

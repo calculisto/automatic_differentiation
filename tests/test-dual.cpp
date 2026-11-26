@@ -85,15 +85,29 @@ opaque (Number x)
     namespace
 function_checks
 {
-    // The argument number I of the function: the independent variable number
-    // I if bit I of Mask is set, the value x otherwise.
+    // The seeds of the shared differential, one per argument.
+        constexpr std::array
+    shared_seeds { -3., 0.5, 5. };
+
+    // The argument number I of the function, of K: if bit I of Mask is set, a
+    // dual with K + 2 differentials: 2 in slot I, so that slot I of the result
+    // is twice the partial derivative I, and a seed in the shared slot K, so
+    // that slot K of the result sums the terms of several arguments (the
+    // chain rule). Slot K + 1 is zero in every argument, and must stay so,
+    // even where a partial derivative is infinite or NaN. The value x
+    // otherwise.
         template <unsigned Mask, std::size_t I, std::size_t K, class Real>
         auto
     argument (Real x)
     {
+        static_assert (K <= shared_seeds.size ());
         if constexpr ((Mask >> I) & 1u)
         {
-            return independent_variable <K, Real> (x, I);
+                auto
+            a = dual_t <K + 2, Real> { x };
+            a.differentials[I] = 2;
+            a.differentials[K] = static_cast <Real> (shared_seeds[I]);
+            return a;
         }
         else
         {
@@ -114,20 +128,33 @@ function_checks
         INFO ("Duals: mask ", Mask);
             const auto
         r = f (argument <Mask, I, K> (x[I])...);
-        static_assert (std::same_as <decltype (r), dual_t <K, Real> const>);
+        static_assert (std::same_as <decltype (r), dual_t <K + 2, Real> const>);
         CHECK(r.value == f (x[I]...));
+            auto
+        shared = Real {};
+            auto
+        magnitude = Real {};
         for (std::size_t i = 0; i < K; ++i)
         {
-            INFO ("Partial derivative ", i, ": ", r.differentials[i], " expected ", (((Mask >> i) & 1u) ? partials[i] : Real {}));
+            INFO ("Partial derivative ", i, ": ", r.differentials[i], " expected ", (((Mask >> i) & 1u) ? 2 * partials[i] : Real {}));
             if ((Mask >> i) & 1u)
             {
-                CHECK(within_ulps <Real> (r.differentials[i], partials[i], ulps));
+                CHECK(within_ulps <Real> (r.differentials[i], 2 * partials[i], ulps));
+                    const auto
+                term = static_cast <Real> (shared_seeds[i]) * partials[i];
+                shared += term;
+                magnitude += std::abs (term);
             }
             else
             {
                 CHECK(r.differentials[i] == 0);
             }
         }
+        // The terms may cancel: the error is relative to their magnitude.
+        INFO ("Shared differential: ", r.differentials[K], " expected ", shared);
+        CHECK(std::abs (r.differentials[K] - shared)
+            <= ulps * std::numeric_limits <Real>::epsilon () * magnitude);
+        CHECK(r.differentials[K + 1] == 0);
     }
 
         template <class F, class Real, std::size_t K, std::size_t... M>
@@ -167,9 +194,7 @@ check_function (
 }
 
 // Checks f, a function of one argument, at each of the points converted to
-// Real, with derivative its derivative: with an independent variable as
-// argument, and with a dual whose differentials are not all zero or one, for
-// the chain rule.
+// Real, with derivative its derivative.
     template <class Real, class F, class D>
     void
 check_unary_function (F f, D derivative, std::initializer_list <double> points)
@@ -179,13 +204,6 @@ check_unary_function (F f, D derivative, std::initializer_list <double> points)
             const auto
         x = opaque <Real> (point);
         check_function (f, std::array { x }, std::array { derivative (x) });
-        INFO ("At x = ", x, ", with differentials { 2, -3 }");
-            const auto
-        r = f (dual_t <2, Real> { x, { 2, -3 } });
-        static_assert (std::same_as <decltype (r), dual_t <2, Real> const>);
-        CHECK(r.value == f (x));
-        CHECK(within_ulps <Real> (r.differentials[0],  2 * derivative (x), ulps));
-        CHECK(within_ulps <Real> (r.differentials[1], -3 * derivative (x), ulps));
     }
 }
 
@@ -625,22 +643,28 @@ SUBCASE("Functions of two arguments")
         }
     }
 }
-SUBCASE("pow where the base is not positive")
+SUBCASE("pow at the boundaries of its domain")
 {
     // A term of the derivative whose differential is zero contributes zero,
     // even where its factor is infinite or NaN, so that a constant exponent
-    // or base gives the same result as a double. The other terms follow the
-    // mathematics: d/db pow (a, b) is NaN for a < 0, where pow (a, b) is not
-    // real around b, zero for a = 0 and b > 0, and -inf at 0^0 (log (0) times
-    // pow (0, 0) = 1).
+    // or base gives the same result as a scalar one. The other terms follow
+    // the mathematics: d/db pow (a, b) is NaN for a < 0, where pow (a, b) is
+    // not real around b, even where pow (a, b) underflows to zero; zero for
+    // a = 0 and b > 0, and for a = +inf and b < 0, where pow (a, b) is zero
+    // around b; and -inf at 0^0 (log (0) times pow (0, 0) = 1).
         const auto
     nan = std::numeric_limits <Real>::quiet_NaN ();
         const auto
     inf = std::numeric_limits <Real>::infinity ();
+    // Equal, with the same sign for zeros, or both NaN.
         const auto
     same = [] (Real result, Real expected)
     {
-        return std::isnan (expected) ? std::isnan (result) : result == expected;
+        if (std::isnan (expected))
+        {
+            return std::isnan (result);
+        }
+        return result == expected and std::signbit (result) == std::signbit (expected);
     };
         struct
     point_t
@@ -648,32 +672,47 @@ SUBCASE("pow where the base is not positive")
         Real a, b, partial_a, partial_b;
     };
     for (auto const& [a0, b0, partial_a, partial_b]: {
-          point_t { -2, 0,   0,   nan }
-        , point_t { -2, 0.5, nan, nan }
-        , point_t { -2, 1,   1,   nan }
-        , point_t { -2, 2,   -4,  nan }
-        , point_t { -2, 3,   12,  nan }
-        , point_t { 0,  0,   0,   -inf }
-        , point_t { 0,  0.5, inf, 0 }
-        , point_t { 0,  1,   1,   0 }
-        , point_t { 0,  2,   0,   0 }
+          point_t { -2,  0,      0,   nan }
+        , point_t { -2,  0.5,    nan, nan }
+        , point_t { -2,  1,      1,   nan }
+        , point_t { -2,  2,      -4,  nan }
+        , point_t { -2,  3,      12,  nan }
+        , point_t { -2,  -20000, 0,   nan }
+        , point_t { -0., 2,      -0., 0 }
+        , point_t { 0,   0,      0,   -inf }
+        , point_t { 0,   0.5,    inf, 0 }
+        , point_t { 0,   1,      1,   0 }
+        , point_t { 0,   2,      0,   0 }
+        , point_t { inf, -1,     -0., 0 }
     }){
             const auto
         a = opaque <Real> (a0);
             const auto
         b = opaque <Real> (b0);
         INFO ("a = ", a, ", b = ", b);
+        // With an unused differential, which must stay zero.
         {
                 const auto
-            r = pow (independent_variable <2, Real> (a, 0), independent_variable <2, Real> (b, 1));
+            r = pow (independent_variable <3, Real> (a, 0), independent_variable <3, Real> (b, 1));
             CHECK(same (r.value, std::pow (a, b)));
             CHECK(same (r.differentials[0], partial_a));
             CHECK(same (r.differentials[1], partial_b));
+            CHECK(same (r.differentials[2], 0));
         }
-        CHECK(same (pow (independent_variable <1, Real> (a, 0), dual_t <1, Real> { b }).differentials[0], partial_a));
-        CHECK(same (pow (independent_variable <1, Real> (a, 0), b).differentials[0], partial_a));
-        CHECK(same (pow (dual_t <1, Real> { a }, independent_variable <1, Real> (b, 0)).differentials[0], partial_b));
-        CHECK(same (pow (a, independent_variable <1, Real> (b, 0)).differentials[0], partial_b));
+        for (auto const& r: {
+              pow (independent_variable <2, Real> (a, 0), dual_t <2, Real> { b })
+            , pow (independent_variable <2, Real> (a, 0), b)
+        }){
+            CHECK(same (r.differentials[0], partial_a));
+            CHECK(same (r.differentials[1], 0));
+        }
+        for (auto const& r: {
+              pow (dual_t <2, Real> { a }, independent_variable <2, Real> (b, 0))
+            , pow (a, independent_variable <2, Real> (b, 0))
+        }){
+            CHECK(same (r.differentials[0], partial_b));
+            CHECK(same (r.differentials[1], 0));
+        }
     }
 }
 SUBCASE("Functions of three arguments")
