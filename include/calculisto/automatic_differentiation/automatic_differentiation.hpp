@@ -2,6 +2,8 @@
 #include "calculisto/array/array.hpp"
 #include <algorithm>
 #include <cmath>
+#include <compare>
+#include <concepts>
 #include <cstddef>
 #include <numbers>
 
@@ -62,41 +64,56 @@ dual_t
         differentials.at (index) = differential_value;
     }
 };
+    namespace
+detail
+{
+        template <class T>
+        constexpr bool
+    is_dual = false;
+
+        template <std::size_t N, class T>
+        constexpr bool
+    is_dual <dual_t <N, T>> = true;
+} // namespace detail
+
+// Comparisons compare the values only, like those of a number, so that code
+// branching on a dual takes the same branch as with its value. The operators
+// with a scalar on the left are rewritten from these ones.
         template <std::size_t N, class T, class U>
-        auto
-    operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b)
-    {
-        return a.value <=> b.value;
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator <=> (dual_t <N, T> const& a, U const& b)
-    {
-        return a.value <=> b;
-    }
-        template <std::size_t N, class T, class U>
-        auto
-    operator <=> (U const& a, dual_t <N, T> const& b)
-    {
-        return a <=> b.value;
-    }
-        template <std::size_t N, class T, class U>
-        auto
+        requires requires (T const& t, U const& u) 
+        {
+            { t == u } -> std::convertible_to <bool>;
+        }
+        constexpr bool
     operator == (dual_t <N, T> const& a, dual_t <N, U> const& b)
     {
         return a.value == b.value;
     }
         template <std::size_t N, class T, class U>
-        auto
+        requires (not detail::is_dual <U>) 
+        and requires (T const& t, U const& u) 
+        {
+            { t == u } -> std::convertible_to <bool>;
+        }
+        constexpr bool
     operator == (dual_t <N, T> const& a, U const& b)
     {
         return a.value == b;
     }
         template <std::size_t N, class T, class U>
-        auto
-    operator == (U const& a, dual_t <N, T> const& b)
+        requires requires (T const& t, U const& u) { t <=> u; }
+        constexpr auto
+    operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b)
     {
-        return a == b.value;
+        return a.value <=> b.value;
+    }
+        template <std::size_t N, class T, class U>
+        requires (not detail::is_dual <U>) 
+        and requires (T const& t, U const& u) { t <=> u; }
+        constexpr auto
+    operator <=> (dual_t <N, T> const& a, U const& b)
+    {
+        return a.value <=> b;
     }
 
         template <std::size_t N, class T>

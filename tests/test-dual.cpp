@@ -2,6 +2,41 @@
     using doctest::Approx;
 #include "../include/calculisto/automatic_differentiation/automatic_differentiation.hpp"
     using namespace calculisto::automatic_differentiation;
+#include <concepts>
+
+// Comparisons exist only with types whose values compare with the value of
+// the dual, give a bool (== and !=) or an ordering (<=>), and asking whether
+// they exist doesn't cause a compilation error.
+    template <class A, class B>
+    concept
+comparable = requires (A const& a, B const& b)
+{
+    { a == b } -> std::same_as <bool>;
+    { b == a } -> std::same_as <bool>;
+    { a != b } -> std::same_as <bool>;
+    { b != a } -> std::same_as <bool>;
+    { a <=> b } -> std::same_as <std::partial_ordering>;
+    { b <=> a } -> std::same_as <std::partial_ordering>;
+    { a < b } -> std::same_as <bool>;
+    { b < a } -> std::same_as <bool>;
+};
+    template <class A, class B>
+    concept
+has_any_comparison = requires (A const& a, B const& b) { a == b; }
+    or requires (A const& a, B const& b) { b == a; }
+    or requires (A const& a, B const& b) { a != b; }
+    or requires (A const& a, B const& b) { a <=> b; }
+    or requires (A const& a, B const& b) { b <=> a; }
+    or requires (A const& a, B const& b) { a < b; };
+    struct
+not_comparable
+{};
+static_assert (comparable <dual_t <1>, dual_t <1>>);
+static_assert (comparable <dual_t <1>, dual_t <1, float>>);
+static_assert (comparable <dual_t <1>, double>);
+static_assert (comparable <dual_t <1>, int>);
+static_assert (not has_any_comparison <dual_t <1>, not_comparable>);
+static_assert (not has_any_comparison <dual_t <1>, dual_t <2>>);
 
 TEST_CASE("automatic_differentiation.hpp")
 {
