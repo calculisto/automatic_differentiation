@@ -234,7 +234,7 @@ detail
             using std::acos, std::sqrt;
         return dual_t { 
               acos (a.value)
-            , -a.differentials / sqrt (1. - a.value * a.value) };
+            , -a.differentials / sqrt (1 - a.value * a.value) };
     }
         template <std::size_t N, class T>
         auto
@@ -243,7 +243,7 @@ detail
             using std::asin, std::sqrt;
         return dual_t { 
               asin (a.value)
-            , a.differentials / sqrt (1. - a.value * a.value) };
+            , a.differentials / sqrt (1 - a.value * a.value) };
     }
         template <std::size_t N, class T>
         auto
@@ -252,7 +252,7 @@ detail
             using std::atan;
         return dual_t { 
               atan (a.value)
-            , a.differentials / (1. + a.value * a.value) };
+            , a.differentials / (1 + a.value * a.value) };
     }
         template <std::size_t N, class T, class U>
         auto
@@ -317,7 +317,7 @@ detail
             using std::acosh, std::sqrt;
         return dual_t { 
               acosh (a.value)
-            , a.differentials / sqrt (a.value * a.value - 1.) };
+            , a.differentials / sqrt (a.value * a.value - 1) };
     }
         template <std::size_t N, class T>
         auto
@@ -326,7 +326,7 @@ detail
             using std::asinh, std::sqrt;
         return dual_t { 
               asinh (a.value)
-            , a.differentials / sqrt (1. + a.value * a.value) };
+            , a.differentials / sqrt (1 + a.value * a.value) };
     }
         template <std::size_t N, class T>
         auto
@@ -335,7 +335,7 @@ detail
             using std::atanh;
         return dual_t { 
               atanh (a.value)
-            , a.differentials / (1. - a.value * a.value) };
+            , a.differentials / (1 - a.value * a.value) };
     }
         template <std::size_t N, class T>
         auto
@@ -376,7 +376,7 @@ detail
             using std::exp2;
             const auto
         tmp = exp2 (a.value);
-        return dual_t { tmp, a.differentials * tmp * std::numbers::ln2 };
+        return dual_t { tmp, a.differentials * tmp * std::numbers::ln2_v <T> };
     }
         template <std::size_t N, class T>
         auto
@@ -402,7 +402,7 @@ detail
             using std::log10;
         return dual_t { 
               log10 (a.value)
-            , a.differentials / a.value / std::numbers::ln10 
+            , a.differentials / a.value / std::numbers::ln10_v <T> 
         };
     }
         template <std::size_t N, class T>
@@ -410,7 +410,7 @@ detail
     log1p (dual_t <N, T> const& a)
     {
             using std::log1p;
-        return dual_t { log1p (a.value), a.differentials / (a.value + 1.) };
+        return dual_t { log1p (a.value), a.differentials / (a.value + 1) };
     }
         template <std::size_t N, class T>
         auto
@@ -419,7 +419,7 @@ detail
             using std::log2;
         return dual_t { 
               log2 (a.value)
-            , a.differentials / a.value / std::numbers::ln2 
+            , a.differentials / a.value / std::numbers::ln2_v <T> 
         };
     }
     // double logb(double x);
@@ -445,17 +445,17 @@ detail
             using std::abs, std::copysign;
         return dual_t { 
               abs (a.value)
-            , a.differentials * copysign (1., a.value)
+            , a.differentials * copysign (T { 1 }, a.value)
         };
     }
         template <std::size_t N, class T>
         auto
     fabs (dual_t <N, T> const& a)
     {
-            using std::fabs;
+            using std::fabs, std::copysign;
         return dual_t { 
               fabs (a.value)
-            , a.differentials  * copysign (1., a.value)
+            , a.differentials * copysign (T { 1 }, a.value)
         };
     }
         template <std::size_t N, class T, class U>
@@ -704,7 +704,7 @@ detail
         tmp = sqrt (a.value);
         return dual_t { 
               tmp
-            , a.differentials / 2. / tmp
+            , a.differentials / (2 * tmp)
         };
     }
 } // namespace calculisto::automatic_differentiation

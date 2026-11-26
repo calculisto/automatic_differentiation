@@ -48,34 +48,37 @@ static_assert (comparable <dual_t <1>, int>);
 static_assert (not has_any_comparison <dual_t <1>, not_comparable>);
 static_assert (not has_any_comparison <dual_t <1>, dual_t <2>>);
 
-// Tools to check the functions: the value of the result must be that of the
-// std:: function, and its differentials must be the partial derivatives,
-// computed independently in the tests, within a few ulps.
+// Tools to check the functions, with Real the floating-point type of the
+// values: the value of the result must be that of the std:: function, and its
+// differentials must be the partial derivatives, computed independently in the
+// tests, within a few ulps.
 
 // a and b are equal within n ulps (relative to the larger of the two).
+    template <class Real>
     bool
-within_ulps (double a, double b, double n)
+within_ulps (Real a, Real b, Real n)
 {
     if (a == b)
     {
         return true;
     }
     return std::abs (a - b)
-        <= n * std::numeric_limits <double>::epsilon ()
+        <= n * std::numeric_limits <Real>::epsilon ()
             * std::max (std::abs (a), std::abs (b));
 }
 
-// The tolerance of the derivatives.
-    constexpr double
+// The tolerance of the derivatives, in ulps.
+    constexpr int
 ulps = 4;
 
-// The value of x, which the compiler cannot know: the results are computed at
-// run time, as in the std:: functions they are compared with.
-    double
-opaque (double x)
+// The value x converted to Real, which the compiler cannot know: the results
+// are computed at run time, as in the std:: functions they are compared with.
+    template <class Real, class Number>
+    Real
+opaque (Number x)
 {
-        volatile double
-    v = x;
+        volatile Real
+    v = static_cast <Real> (x);
     return v;
 }
 
@@ -83,14 +86,14 @@ opaque (double x)
 function_checks
 {
     // The argument number I of the function: the independent variable number
-    // I if bit I of Mask is set, the double x otherwise.
-        template <unsigned Mask, std::size_t I, std::size_t K>
+    // I if bit I of Mask is set, the value x otherwise.
+        template <unsigned Mask, std::size_t I, std::size_t K, class Real>
         auto
-    argument (double x)
+    argument (Real x)
     {
         if constexpr ((Mask >> I) & 1u)
         {
-            return independent_variable <K> (x, I);
+            return independent_variable <K, Real> (x, I);
         }
         else
         {
@@ -99,25 +102,26 @@ function_checks
     }
 
     // Checks f at x, with the arguments selected by Mask being duals and the
-    // others doubles: partials are the partial derivatives of f at x.
-        template <unsigned Mask, class F, std::size_t K, std::size_t... I>
+    // others values: partials are the partial derivatives of f at x.
+        template <unsigned Mask, class F, class Real, std::size_t K, std::size_t... I>
         void
     check_function_mask (
           F f
-        , std::array <double, K> const& x
-        , std::array <double, K> const& partials
+        , std::array <Real, K> const& x
+        , std::array <Real, K> const& partials
         , std::index_sequence <I...>
     ){
         INFO ("Duals: mask ", Mask);
             const auto
         r = f (argument <Mask, I, K> (x[I])...);
+        static_assert (std::same_as <decltype (r), dual_t <K, Real> const>);
         CHECK(r.value == f (x[I]...));
         for (std::size_t i = 0; i < K; ++i)
         {
-            INFO ("Partial derivative ", i, ": ", r.differentials[i], " expected ", (((Mask >> i) & 1u) ? partials[i] : 0.));
+            INFO ("Partial derivative ", i, ": ", r.differentials[i], " expected ", (((Mask >> i) & 1u) ? partials[i] : Real {}));
             if ((Mask >> i) & 1u)
             {
-                CHECK(within_ulps (r.differentials[i], partials[i], ulps));
+                CHECK(within_ulps <Real> (r.differentials[i], partials[i], ulps));
             }
             else
             {
@@ -126,12 +130,12 @@ function_checks
         }
     }
 
-        template <class F, std::size_t K, std::size_t... M>
+        template <class F, class Real, std::size_t K, std::size_t... M>
         void
     check_function_all_masks (
           F f
-        , std::array <double, K> const& x
-        , std::array <double, K> const& partials
+        , std::array <Real, K> const& x
+        , std::array <Real, K> const& partials
         , std::index_sequence <M...>
     ){
         // Mask 0, where no argument is a dual, is not checked.
@@ -145,13 +149,13 @@ function_checks
 } // namespace function_checks
 
 // Checks f, a function of K arguments, at x, with partials its partial
-// derivatives there: with each combination of duals and doubles as arguments.
-    template <class F, std::size_t K>
+// derivatives there: with each combination of duals and values as arguments.
+    template <class F, class Real, std::size_t K>
     void
 check_function (
       F f
-    , std::array <double, K> const& x
-    , std::array <double, K> const& partials
+    , std::array <Real, K> const& x
+    , std::array <Real, K> const& partials
 ){
     INFO ("At x[0] = ", x[0]);
     function_checks::check_function_all_masks (
@@ -162,31 +166,32 @@ check_function (
     );
 }
 
-// Checks f, a function of one argument, at each of the points, with derivative
-// its derivative: with an independent variable as argument, and with a dual
-// whose differentials are not all zero or one, for the chain rule.
-    template <class F, class D>
+// Checks f, a function of one argument, at each of the points converted to
+// Real, with derivative its derivative: with an independent variable as
+// argument, and with a dual whose differentials are not all zero or one, for
+// the chain rule.
+    template <class Real, class F, class D>
     void
 check_unary_function (F f, D derivative, std::initializer_list <double> points)
 {
     for (auto const point: points)
     {
             const auto
-        x = opaque (point);
+        x = opaque <Real> (point);
         check_function (f, std::array { x }, std::array { derivative (x) });
         INFO ("At x = ", x, ", with differentials { 2, -3 }");
             const auto
-        r = f (dual_t <2> { x, { 2., -3. } });
+        r = f (dual_t <2, Real> { x, { 2, -3 } });
+        static_assert (std::same_as <decltype (r), dual_t <2, Real> const>);
         CHECK(r.value == f (x));
-        CHECK(within_ulps (r.differentials[0],  2 * derivative (x), ulps));
-        CHECK(within_ulps (r.differentials[1], -3 * derivative (x), ulps));
+        CHECK(within_ulps <Real> (r.differentials[0],  2 * derivative (x), ulps));
+        CHECK(within_ulps <Real> (r.differentials[1], -3 * derivative (x), ulps));
     }
 }
 
-// The functions to check, callable with doubles and with duals.
+// The functions to check, callable with values and with duals.
 #define FUNCTION(name) \
     [] (auto const&... arguments) { using std::name; return name (arguments...); }
-
 
 TEST_CASE("automatic_differentiation.hpp")
 {
@@ -370,275 +375,6 @@ SUBCASE("Arithmetic, two values")
         CHECK(f.differentials[1] == -2. / 9);
     }
 }
-SUBCASE("Functions of one argument")
-{
-        const auto
-    inverse_sqrt_one_minus_square = [] (double x)
-    {
-        return 1 / std::sqrt ((1 - x) * (1 + x));
-    };
-        const auto
-    sign = [] (double x)
-    {
-        return x < 0 ? -1. : 1.;
-    };
-    SUBCASE("acos")
-    {
-        check_unary_function (FUNCTION (acos), [&] (double x)
-        {
-            return -inverse_sqrt_one_minus_square (x);
-        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
-    }
-    SUBCASE("asin")
-    {
-        check_unary_function (FUNCTION (asin), inverse_sqrt_one_minus_square
-            , { -0.9, -0.5, 0.1, 0.5, 0.9 });
-    }
-    SUBCASE("atan")
-    {
-        check_unary_function (FUNCTION (atan), [] (double x)
-        {
-            return 1 / (1 + x * x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("cos")
-    {
-        check_unary_function (FUNCTION (cos), [] (double x)
-        {
-            return -std::sin (x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("sin")
-    {
-        check_unary_function (FUNCTION (sin), [] (double x)
-        {
-            return std::cos (x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("tan")
-    {
-        check_unary_function (FUNCTION (tan), [] (double x)
-        {
-            return 1 / (std::cos (x) * std::cos (x));
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("acosh")
-    {
-        check_unary_function (FUNCTION (acosh), [] (double x)
-        {
-            return 1 / std::sqrt ((x - 1) * (x + 1));
-        }, { 1.5, 2, 10 });
-    }
-    SUBCASE("asinh")
-    {
-        check_unary_function (FUNCTION (asinh), [] (double x)
-        {
-            return 1 / std::sqrt (x * x + 1);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("atanh")
-    {
-        check_unary_function (FUNCTION (atanh), [] (double x)
-        {
-            return 1 / ((1 - x) * (1 + x));
-        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
-    }
-    SUBCASE("cosh")
-    {
-        check_unary_function (FUNCTION (cosh), [] (double x)
-        {
-            return std::sinh (x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("sinh")
-    {
-        check_unary_function (FUNCTION (sinh), [] (double x)
-        {
-            return std::cosh (x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("tanh")
-    {
-        check_unary_function (FUNCTION (tanh), [] (double x)
-        {
-            return 1 / (std::cosh (x) * std::cosh (x));
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("exp")
-    {
-        check_unary_function (FUNCTION (exp), [] (double x)
-        {
-            return std::exp (x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("exp2")
-    {
-        check_unary_function (FUNCTION (exp2), [] (double x)
-        {
-            return std::exp2 (x) * std::numbers::ln2;
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("expm1")
-    {
-        check_unary_function (FUNCTION (expm1), [] (double x)
-        {
-            return std::exp (x);
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("log")
-    {
-        check_unary_function (FUNCTION (log), [] (double x)
-        {
-            return 1 / x;
-        }, { 0.1, 0.5, 2, 10 });
-    }
-    SUBCASE("log10")
-    {
-        check_unary_function (FUNCTION (log10), [] (double x)
-        {
-            return 1 / (x * std::numbers::ln10);
-        }, { 0.1, 0.5, 2, 10 });
-    }
-    SUBCASE("log1p")
-    {
-        check_unary_function (FUNCTION (log1p), [] (double x)
-        {
-            return 1 / (1 + x);
-        }, { -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("log2")
-    {
-        check_unary_function (FUNCTION (log2), [] (double x)
-        {
-            return 1 / (x * std::numbers::ln2);
-        }, { 0.1, 0.5, 2, 10 });
-    }
-    SUBCASE("cbrt")
-    {
-        check_unary_function (FUNCTION (cbrt), [] (double x)
-        {
-            return 1 / (3 * std::cbrt (x) * std::cbrt (x));
-        }, { -2, -0.5, 0.1, 0.5, 2 });
-    }
-    SUBCASE("abs")
-    {
-        check_unary_function (FUNCTION (abs), sign, { -2, -0.5, 0.5, 2 });
-    }
-    SUBCASE("fabs")
-    {
-        check_unary_function (FUNCTION (fabs), sign, { -2, -0.5, 0.5, 2 });
-    }
-    SUBCASE("sqrt")
-    {
-        check_unary_function (FUNCTION (sqrt), [] (double x)
-        {
-            return 1 / (2 * std::sqrt (x));
-        }, { 0.1, 0.5, 2, 10 });
-    }
-}
-SUBCASE("Functions of two arguments")
-{
-    SUBCASE("atan2")
-    {
-        for (auto const& [y, x]: { std::pair { 3., 2. }, { 0.5, -1. }, { -2., 0.5 } })
-        {
-                const auto
-            r2 = opaque (x * x + y * y);
-            check_function (FUNCTION (atan2)
-                , std::array { opaque (y), opaque (x) }
-                , std::array { x / r2, -y / r2 }
-            );
-        }
-    }
-    SUBCASE("hypot")
-    {
-        for (auto const& [x, y]: { std::pair { 2., 3. }, { -1., 0.5 }, { 0.5, -2. } })
-        {
-                const auto
-            h = std::hypot (opaque (x), opaque (y));
-            check_function (FUNCTION (hypot)
-                , std::array { opaque (x), opaque (y) }
-                , std::array { x / h, y / h }
-            );
-        }
-    }
-    SUBCASE("pow")
-    {
-        for (auto const& [x, y]: { std::pair { 2., 3. }, { 0.5, -1.5 }, { 3., 0.5 } })
-        {
-                const auto
-            p = std::pow (opaque (x), opaque (y));
-            check_function (FUNCTION (pow)
-                , std::array { opaque (x), opaque (y) }
-                , std::array { y * std::pow (x, y - 1), p * std::log (x) }
-            );
-        }
-    }
-}
-SUBCASE("pow where the base is not positive")
-{
-    // A term of the derivative whose differential is zero contributes zero,
-    // even where its factor is infinite or NaN, so that a constant exponent
-    // or base gives the same result as a double. The other terms follow the
-    // mathematics: d/db pow (a, b) is NaN for a < 0, where pow (a, b) is not
-    // real around b, zero for a = 0 and b > 0, and -inf at 0^0 (log (0) times
-    // pow (0, 0) = 1).
-        const auto
-    nan = std::numeric_limits <double>::quiet_NaN ();
-        const auto
-    inf = std::numeric_limits <double>::infinity ();
-        const auto
-    same = [] (double result, double expected)
-    {
-        return std::isnan (expected) ? std::isnan (result) : result == expected;
-    };
-        struct
-    point_t
-    {
-        double a, b, partial_a, partial_b;
-    };
-    for (auto const& [a0, b0, partial_a, partial_b]: {
-          point_t { -2, 0,   0,   nan }
-        , point_t { -2, 0.5, nan, nan }
-        , point_t { -2, 1,   1,   nan }
-        , point_t { -2, 2,   -4,  nan }
-        , point_t { -2, 3,   12,  nan }
-        , point_t { 0,  0,   0,   -inf }
-        , point_t { 0,  0.5, inf, 0 }
-        , point_t { 0,  1,   1,   0 }
-        , point_t { 0,  2,   0,   0 }
-    }){
-            const auto
-        a = opaque (a0);
-            const auto
-        b = opaque (b0);
-        INFO ("a = ", a, ", b = ", b);
-        {
-                const auto
-            r = pow (independent_variable <2> (a, 0), independent_variable <2> (b, 1));
-            CHECK(same (r.value, std::pow (a, b)));
-            CHECK(same (r.differentials[0], partial_a));
-            CHECK(same (r.differentials[1], partial_b));
-        }
-        CHECK(same (pow (independent_variable <1> (a, 0), dual_t <1> { b }).differentials[0], partial_a));
-        CHECK(same (pow (independent_variable <1> (a, 0), b).differentials[0], partial_a));
-        CHECK(same (pow (dual_t <1> { a }, independent_variable <1> (b, 0)).differentials[0], partial_b));
-        CHECK(same (pow (a, independent_variable <1> (b, 0)).differentials[0], partial_b));
-    }
-}
-SUBCASE("Functions of three arguments")
-{
-    SUBCASE("hypot")
-    {
-            const auto
-        x = std::array { opaque (2.), opaque (-1.), opaque (3.) };
-            const auto
-        h = std::hypot (x[0], x[1], x[2]);
-        check_function (FUNCTION (hypot), x
-            , std::array { x[0] / h, x[1] / h, x[2] / h }
-        );
-    }
-}
 SUBCASE("Polynomials")
 {
         const auto
@@ -671,3 +407,286 @@ SUBCASE("Unused dimensions")
 }
     
 } // TEST_CASE("automatic_differentiation.hpp")
+
+TEST_CASE_TEMPLATE("Functions", Real, float, double, long double)
+{
+SUBCASE("Functions of one argument")
+{
+        const auto
+    inverse_sqrt_one_minus_square = [] (Real x)
+    {
+        return 1 / std::sqrt ((1 - x) * (1 + x));
+    };
+        const auto
+    sign = [] (Real x)
+    {
+        return x < 0 ? Real { -1 } : Real { 1 };
+    };
+    SUBCASE("acos")
+    {
+        check_unary_function <Real> (FUNCTION (acos), [&] (Real x)
+        {
+            return -inverse_sqrt_one_minus_square (x);
+        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
+    }
+    SUBCASE("asin")
+    {
+        check_unary_function <Real> (FUNCTION (asin), inverse_sqrt_one_minus_square
+            , { -0.9, -0.5, 0.1, 0.5, 0.9 });
+    }
+    SUBCASE("atan")
+    {
+        check_unary_function <Real> (FUNCTION (atan), [] (Real x)
+        {
+            return 1 / (1 + x * x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("cos")
+    {
+        check_unary_function <Real> (FUNCTION (cos), [] (Real x)
+        {
+            return -std::sin (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("sin")
+    {
+        check_unary_function <Real> (FUNCTION (sin), [] (Real x)
+        {
+            return std::cos (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("tan")
+    {
+        check_unary_function <Real> (FUNCTION (tan), [] (Real x)
+        {
+            return 1 / (std::cos (x) * std::cos (x));
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("acosh")
+    {
+        check_unary_function <Real> (FUNCTION (acosh), [] (Real x)
+        {
+            return 1 / std::sqrt ((x - 1) * (x + 1));
+        }, { 1.5, 2, 10 });
+    }
+    SUBCASE("asinh")
+    {
+        check_unary_function <Real> (FUNCTION (asinh), [] (Real x)
+        {
+            return 1 / std::sqrt (x * x + 1);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("atanh")
+    {
+        check_unary_function <Real> (FUNCTION (atanh), [] (Real x)
+        {
+            return 1 / ((1 - x) * (1 + x));
+        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
+    }
+    SUBCASE("cosh")
+    {
+        check_unary_function <Real> (FUNCTION (cosh), [] (Real x)
+        {
+            return std::sinh (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("sinh")
+    {
+        check_unary_function <Real> (FUNCTION (sinh), [] (Real x)
+        {
+            return std::cosh (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("tanh")
+    {
+        check_unary_function <Real> (FUNCTION (tanh), [] (Real x)
+        {
+            return 1 / (std::cosh (x) * std::cosh (x));
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("exp")
+    {
+        check_unary_function <Real> (FUNCTION (exp), [] (Real x)
+        {
+            return std::exp (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("exp2")
+    {
+        check_unary_function <Real> (FUNCTION (exp2), [] (Real x)
+        {
+            return std::exp2 (x) * std::numbers::ln2_v <Real>;
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("expm1")
+    {
+        check_unary_function <Real> (FUNCTION (expm1), [] (Real x)
+        {
+            return std::exp (x);
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("log")
+    {
+        check_unary_function <Real> (FUNCTION (log), [] (Real x)
+        {
+            return 1 / x;
+        }, { 0.1, 0.5, 2, 10 });
+    }
+    SUBCASE("log10")
+    {
+        check_unary_function <Real> (FUNCTION (log10), [] (Real x)
+        {
+            return 1 / (x * std::numbers::ln10_v <Real>);
+        }, { 0.1, 0.5, 2, 10 });
+    }
+    SUBCASE("log1p")
+    {
+        check_unary_function <Real> (FUNCTION (log1p), [] (Real x)
+        {
+            return 1 / (1 + x);
+        }, { -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("log2")
+    {
+        check_unary_function <Real> (FUNCTION (log2), [] (Real x)
+        {
+            return 1 / (x * std::numbers::ln2_v <Real>);
+        }, { 0.1, 0.5, 2, 10 });
+    }
+    SUBCASE("cbrt")
+    {
+        check_unary_function <Real> (FUNCTION (cbrt), [] (Real x)
+        {
+            return 1 / (3 * std::cbrt (x) * std::cbrt (x));
+        }, { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("abs")
+    {
+        check_unary_function <Real> (FUNCTION (abs), sign, { -2, -0.5, 0.5, 2 });
+    }
+    SUBCASE("fabs")
+    {
+        check_unary_function <Real> (FUNCTION (fabs), sign, { -2, -0.5, 0.5, 2 });
+    }
+    SUBCASE("sqrt")
+    {
+        check_unary_function <Real> (FUNCTION (sqrt), [] (Real x)
+        {
+            return 1 / (2 * std::sqrt (x));
+        }, { 0.1, 0.5, 2, 10 });
+    }
+}
+SUBCASE("Functions of two arguments")
+{
+    SUBCASE("atan2")
+    {
+        for (auto const& [y0, x0]: { std::pair { 3., 2. }, { 0.5, -1. }, { -2., 0.5 } })
+        {
+                const auto
+            y = opaque <Real> (y0);
+                const auto
+            x = opaque <Real> (x0);
+                const auto
+            r2 = x * x + y * y;
+            check_function (FUNCTION (atan2)
+                , std::array { y, x }
+                , std::array { x / r2, -y / r2 }
+            );
+        }
+    }
+    SUBCASE("hypot")
+    {
+        for (auto const& [x0, y0]: { std::pair { 2., 3. }, { -1., 0.5 }, { 0.5, -2. } })
+        {
+                const auto
+            x = opaque <Real> (x0);
+                const auto
+            y = opaque <Real> (y0);
+                const auto
+            h = std::hypot (x, y);
+            check_function (FUNCTION (hypot)
+                , std::array { x, y }
+                , std::array { x / h, y / h }
+            );
+        }
+    }
+    SUBCASE("pow")
+    {
+        for (auto const& [x0, y0]: { std::pair { 2., 3. }, { 0.5, -1.5 }, { 3., 0.5 } })
+        {
+                const auto
+            x = opaque <Real> (x0);
+                const auto
+            y = opaque <Real> (y0);
+            check_function (FUNCTION (pow)
+                , std::array { x, y }
+                , std::array { y * std::pow (x, y - 1), std::pow (x, y) * std::log (x) }
+            );
+        }
+    }
+}
+SUBCASE("pow where the base is not positive")
+{
+    // A term of the derivative whose differential is zero contributes zero,
+    // even where its factor is infinite or NaN, so that a constant exponent
+    // or base gives the same result as a double. The other terms follow the
+    // mathematics: d/db pow (a, b) is NaN for a < 0, where pow (a, b) is not
+    // real around b, zero for a = 0 and b > 0, and -inf at 0^0 (log (0) times
+    // pow (0, 0) = 1).
+        const auto
+    nan = std::numeric_limits <Real>::quiet_NaN ();
+        const auto
+    inf = std::numeric_limits <Real>::infinity ();
+        const auto
+    same = [] (Real result, Real expected)
+    {
+        return std::isnan (expected) ? std::isnan (result) : result == expected;
+    };
+        struct
+    point_t
+    {
+        Real a, b, partial_a, partial_b;
+    };
+    for (auto const& [a0, b0, partial_a, partial_b]: {
+          point_t { -2, 0,   0,   nan }
+        , point_t { -2, 0.5, nan, nan }
+        , point_t { -2, 1,   1,   nan }
+        , point_t { -2, 2,   -4,  nan }
+        , point_t { -2, 3,   12,  nan }
+        , point_t { 0,  0,   0,   -inf }
+        , point_t { 0,  0.5, inf, 0 }
+        , point_t { 0,  1,   1,   0 }
+        , point_t { 0,  2,   0,   0 }
+    }){
+            const auto
+        a = opaque <Real> (a0);
+            const auto
+        b = opaque <Real> (b0);
+        INFO ("a = ", a, ", b = ", b);
+        {
+                const auto
+            r = pow (independent_variable <2, Real> (a, 0), independent_variable <2, Real> (b, 1));
+            CHECK(same (r.value, std::pow (a, b)));
+            CHECK(same (r.differentials[0], partial_a));
+            CHECK(same (r.differentials[1], partial_b));
+        }
+        CHECK(same (pow (independent_variable <1, Real> (a, 0), dual_t <1, Real> { b }).differentials[0], partial_a));
+        CHECK(same (pow (independent_variable <1, Real> (a, 0), b).differentials[0], partial_a));
+        CHECK(same (pow (dual_t <1, Real> { a }, independent_variable <1, Real> (b, 0)).differentials[0], partial_b));
+        CHECK(same (pow (a, independent_variable <1, Real> (b, 0)).differentials[0], partial_b));
+    }
+}
+SUBCASE("Functions of three arguments")
+{
+    SUBCASE("hypot")
+    {
+            const auto
+        x = std::array { opaque <Real> (2.), opaque <Real> (-1.), opaque <Real> (3.) };
+            const auto
+        h = std::hypot (x[0], x[1], x[2]);
+        check_function (FUNCTION (hypot), x
+            , std::array { x[0] / h, x[1] / h, x[2] / h }
+        );
+    }
+}
+} // TEST_CASE_TEMPLATE("Functions")
