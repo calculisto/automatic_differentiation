@@ -540,7 +540,7 @@ SUBCASE("Functions of two arguments")
 {
     SUBCASE("atan2")
     {
-        for (auto const [y, x]: { std::pair { 3., 2. }, { 0.5, -1. }, { -2., 0.5 } })
+        for (auto const& [y, x]: { std::pair { 3., 2. }, { 0.5, -1. }, { -2., 0.5 } })
         {
                 const auto
             r2 = opaque (x * x + y * y);
@@ -552,7 +552,7 @@ SUBCASE("Functions of two arguments")
     }
     SUBCASE("hypot")
     {
-        for (auto const [x, y]: { std::pair { 2., 3. }, { -1., 0.5 }, { 0.5, -2. } })
+        for (auto const& [x, y]: { std::pair { 2., 3. }, { -1., 0.5 }, { 0.5, -2. } })
         {
                 const auto
             h = std::hypot (opaque (x), opaque (y));
@@ -564,7 +564,7 @@ SUBCASE("Functions of two arguments")
     }
     SUBCASE("pow")
     {
-        for (auto const [x, y]: { std::pair { 2., 3. }, { 0.5, -1.5 }, { 3., 0.5 } })
+        for (auto const& [x, y]: { std::pair { 2., 3. }, { 0.5, -1.5 }, { 3., 0.5 } })
         {
                 const auto
             p = std::pow (opaque (x), opaque (y));
