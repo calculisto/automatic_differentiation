@@ -8,8 +8,14 @@ project (calculisto_automatic_differentiation
 
 include (GNUInstallDirs)
 
+# Installation, for use with find_package (calculisto_automatic_differentiation):
+# by default only when this is the main project, not when it is used by another
+# one (add_subdirectory, FetchContent).
+option (CALCULISTO_AUTOMATIC_DIFFERENTIATION_INSTALL "Generate the installation rules" ${PROJECT_IS_TOP_LEVEL})
+
 # The dependencies: the installed version if it is compatible, otherwise
-# downloaded.
+# downloaded, and then installed with this project, which needs it.
+set (CALCULISTO_ARRAY_INSTALL ${CALCULISTO_AUTOMATIC_DIFFERENTIATION_INSTALL})
 include (FetchContent)
 FetchContent_Declare (calculisto_array
     GIT_REPOSITORY https://github.com/calculisto/array.git
@@ -31,6 +37,37 @@ target_include_directories (calculisto_automatic_differentiation INTERFACE
 )
 target_link_libraries (calculisto_automatic_differentiation INTERFACE calculisto::array)
 target_compile_features (calculisto_automatic_differentiation INTERFACE cxx_std_20)
+
+if (CALCULISTO_AUTOMATIC_DIFFERENTIATION_INSTALL)
+    include (CMakePackageConfigHelpers)
+    # Header-only, so independent of the architecture: under share/.
+    set (config_directory "${CMAKE_INSTALL_DATADIR}/cmake/calculisto_automatic_differentiation")
+    install (TARGETS calculisto_automatic_differentiation
+        EXPORT calculisto_automatic_differentiation_targets
+    )
+    install (DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    install (EXPORT calculisto_automatic_differentiation_targets
+        NAMESPACE calculisto::
+        FILE calculisto_automatic_differentiationTargets.cmake
+        DESTINATION "${config_directory}"
+    )
+    configure_package_config_file (
+        cmake/calculisto_automatic_differentiationConfig.cmake.in
+        "${PROJECT_BINARY_DIR}/calculisto_automatic_differentiationConfig.cmake"
+        INSTALL_DESTINATION "${config_directory}"
+    )
+    # Version 0.x: a new minor version may break the API.
+    write_basic_package_version_file (
+        "${PROJECT_BINARY_DIR}/calculisto_automatic_differentiationConfigVersion.cmake"
+        COMPATIBILITY SameMinorVersion
+        ARCH_INDEPENDENT
+    )
+    install (FILES
+        "${PROJECT_BINARY_DIR}/calculisto_automatic_differentiationConfig.cmake"
+        "${PROJECT_BINARY_DIR}/calculisto_automatic_differentiationConfigVersion.cmake"
+        DESTINATION "${config_directory}"
+    )
+endif ()
 
 # The tests, only when this is the main project.
 if (PROJECT_IS_TOP_LEVEL)
