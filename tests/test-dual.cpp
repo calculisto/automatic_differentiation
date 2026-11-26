@@ -575,6 +575,57 @@ SUBCASE("Functions of two arguments")
         }
     }
 }
+SUBCASE("pow where the base is not positive")
+{
+    // A term of the derivative whose differential is zero contributes zero,
+    // even where its factor is infinite or NaN, so that a constant exponent
+    // or base gives the same result as a double. The other terms follow the
+    // mathematics: d/db pow (a, b) is NaN for a < 0, where pow (a, b) is not
+    // real around b, zero for a = 0 and b > 0, and -inf at 0^0 (log (0) times
+    // pow (0, 0) = 1).
+        const auto
+    nan = std::numeric_limits <double>::quiet_NaN ();
+        const auto
+    inf = std::numeric_limits <double>::infinity ();
+        const auto
+    same = [] (double result, double expected)
+    {
+        return std::isnan (expected) ? std::isnan (result) : result == expected;
+    };
+        struct
+    point_t
+    {
+        double a, b, partial_a, partial_b;
+    };
+    for (auto const& [a0, b0, partial_a, partial_b]: {
+          point_t { -2, 0,   0,   nan }
+        , point_t { -2, 0.5, nan, nan }
+        , point_t { -2, 1,   1,   nan }
+        , point_t { -2, 2,   -4,  nan }
+        , point_t { -2, 3,   12,  nan }
+        , point_t { 0,  0,   0,   -inf }
+        , point_t { 0,  0.5, inf, 0 }
+        , point_t { 0,  1,   1,   0 }
+        , point_t { 0,  2,   0,   0 }
+    }){
+            const auto
+        a = opaque (a0);
+            const auto
+        b = opaque (b0);
+        INFO ("a = ", a, ", b = ", b);
+        {
+                const auto
+            r = pow (independent_variable <2> (a, 0), independent_variable <2> (b, 1));
+            CHECK(same (r.value, std::pow (a, b)));
+            CHECK(same (r.differentials[0], partial_a));
+            CHECK(same (r.differentials[1], partial_b));
+        }
+        CHECK(same (pow (independent_variable <1> (a, 0), dual_t <1> { b }).differentials[0], partial_a));
+        CHECK(same (pow (independent_variable <1> (a, 0), b).differentials[0], partial_a));
+        CHECK(same (pow (dual_t <1> { a }, independent_variable <1> (b, 0)).differentials[0], partial_b));
+        CHECK(same (pow (a, independent_variable <1> (b, 0)).differentials[0], partial_b));
+    }
+}
 SUBCASE("Functions of three arguments")
 {
     SUBCASE("hypot")

@@ -584,42 +584,116 @@ detail
             , b.differentials * b.value / tmp
         };
     }
+// d pow (a, b) = b pow (a, b - 1) da + pow (a, b) log (a) db. A term whose
+// differential is zero contributes zero, even where its factor is infinite or
+// NaN (log (a) for a <= 0, pow (a, b - 1) for a = 0 and b < 1): a constant
+// exponent or base gives the same result as a scalar one, e.g. the derivative
+// of pow (x, 2) is -4 at x = -2. The factors are also taken as zero where the
+// mathematical derivative is: b pow (a, b - 1) for b = 0 (pow (a, 0) is
+// constant), and pow (a, b) log (a) where pow (a, b) is zero (a = 0, b > 0).
+// Elsewhere, they follow the mathematics, e.g. d/db pow (a, b) is NaN for
+// a < 0, where pow (a, b) is not real around b, and -inf at a = b = 0.
+    namespace
+detail
+{
+        template <class T, class U>
+        auto
+    pow_partial_base (T const& a, U const& b)
+    {
+            using std::pow;
+            using
+        result_t = decltype (pow (a, b));
+        if (b == 0)
+        {
+            return result_t {};
+        }
+        return static_cast <result_t> (b * pow (a, b - 1));
+    }
+
+        template <class T, class P>
+        auto
+    pow_partial_exponent (T const& a, P const& p)
+    {
+            using std::log;
+        if (p == 0)
+        {
+            return P {};
+        }
+        return static_cast <P> (p * log (a));
+    }
+} // namespace detail
+
         template <std::size_t N, class T, class U>
         auto
     pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
     {
-            using std::pow, std::log;
+            using std::pow;
+            using
+        result_t = decltype (pow (a.value, b.value));
             const auto
-        tmp = pow (a.value, b.value);
-        return dual_t { 
-              tmp
-            , b.differentials * tmp * log (a.value)
-            + a.differentials * pow (a.value, b.value - 1) * b.value
-        };
+        p = pow (a.value, b.value);
+            const auto
+        partial_a = detail::pow_partial_base (a.value, b.value);
+            const auto
+        partial_b = detail::pow_partial_exponent (a.value, p);
+            auto
+        r = dual_t <N, result_t> { p };
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            if (a.differentials[i] != 0)
+            {
+                r.differentials[i] += a.differentials[i] * partial_a;
+            }
+            if (b.differentials[i] != 0)
+            {
+                r.differentials[i] += b.differentials[i] * partial_b;
+            }
+        }
+        return r;
     }
         template <std::size_t N, class T, class U>
         auto
     pow (dual_t <N, T> const& a, U const& b)
     {
-            using std::pow, std::log;
+            using std::pow;
+            using
+        result_t = decltype (pow (a.value, b));
             const auto
-        tmp = pow (a.value, b);
-        return dual_t { 
-              tmp
-            , a.differentials * pow (a.value, b - 1) * b
-        };
+        p = pow (a.value, b);
+            const auto
+        partial_a = detail::pow_partial_base (a.value, b);
+            auto
+        r = dual_t <N, result_t> { p };
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            if (a.differentials[i] != 0)
+            {
+                r.differentials[i] = a.differentials[i] * partial_a;
+            }
+        }
+        return r;
     }
         template <std::size_t N, class T, class U>
         auto
     pow (T const& a, dual_t <N, U> const& b)
     {
-            using std::pow, std::log;
+            using std::pow;
+            using
+        result_t = decltype (pow (a, b.value));
             const auto
-        tmp = pow (a, b.value);
-        return dual_t { 
-              tmp
-            , b.differentials * tmp * log (a)
-        };
+        p = pow (a, b.value);
+            const auto
+        partial_b = detail::pow_partial_exponent (a, p);
+            auto
+        r = dual_t <N, result_t> { p };
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            if (b.differentials[i] != 0)
+            {
+                r.differentials[i] = b.differentials[i] * partial_b;
+            }
+        }
+        return r;
     }
         template <std::size_t N, class T>
         auto
