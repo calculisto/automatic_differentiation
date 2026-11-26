@@ -304,9 +304,8 @@ operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
     auto&
 operator += (dual_t <N, T>& a, U const& b)
 {
-    // What += does for numbers, without the warning about the
-    // conversion, which would be in this header rather than in the code
-    // using it.
+    // What += does for numbers, without the warning about the conversion,
+    // which would be in this header rather than in the code using it.
     a.value = detail::convert <T> (a.value + b);
     return a;
 }
@@ -351,9 +350,8 @@ operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
     auto&
 operator -= (dual_t <N, T>& a, U const& b)
 {
-    // What -= does for numbers, without the warning about the
-    // conversion, which would be in this header rather than in the code
-    // using it.
+    // What -= does for numbers, without the warning about the conversion,
+    // which would be in this header rather than in the code using it.
     a.value = detail::convert <T> (a.value - b);
     return a;
 }
@@ -973,8 +971,8 @@ pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
     r = dual_t <N, result_t> { p };
     for (std::size_t i = 0; i < N; ++i)
     {
-        // The first term is assigned rather than added to the zero of r,
-        // which would turn a -0 into +0.
+        // The first term is assigned rather than added to the zero of r, which
+        // would turn a -0 into +0.
         if (not detail::is_exactly_zero (x.differentials[i]))
         {
             r.differentials[i] = x.differentials[i] * partial_x;
