@@ -3,6 +3,8 @@
 #include <calculisto/automatic_differentiation/automatic_differentiation.hpp>
     using namespace calculisto::automatic_differentiation;
 #include <concepts>
+#include <type_traits>
+    using calculisto::array::array_t;
 
 // Comparisons exist only with types whose values compare with the value of
 // the dual, give a bool (== and !=) or an ordering (<=>), and asking whether
@@ -42,27 +44,47 @@ TEST_CASE("automatic_differentiation.hpp")
 {
 SUBCASE("Construction")
 {
-        const auto
-    a = dual_t <1> { 2 };
-    CHECK(a.value == 2);
-    CHECK(a.differentials[0] == 0);
+    // An aggregate, like std::array.
+    static_assert (std::is_aggregate_v <dual_t <2>>);
 
+    // Value-initialization gives zero, like double {}.
+        constexpr auto
+    zero = dual_t <2> {};
+    static_assert (zero.value == 0);
+    static_assert (zero.differentials[0] == 0);
+    static_assert (zero.differentials[1] == 0);
+
+    // A constant: the differentials are zero.
+        constexpr auto
+    a = dual_t <1> { 2 };
+    static_assert (a.value == 2);
+    static_assert (a.differentials[0] == 0);
+
+    // The value and the differentials.
+        constexpr auto
+    c = dual_t <2> { 32, { 0, 0.5 } };
+    static_assert (c.value == 32);
+    static_assert (c.differentials[0] == 0);
+    static_assert (c.differentials[1] == 0.5);
+
+    // Class template argument deduction.
+        constexpr auto
+    d = dual_t { 1.f, array_t <float, 2> { 2.f, 3.f } };
+    static_assert (std::same_as <decltype (d), dual_t <2, float> const>);
+
+    // An independent variable: its differential with respect to itself is
+    // one.
         const auto
-    b = dual_t <2> { 25, 0 };
+    b = independent_variable <2> (25., 0);
+    static_assert (std::same_as <decltype (b), dual_t <2> const>);
     CHECK(b.value == 25);
     CHECK(b.differentials[0] == 1);
     CHECK(b.differentials[1] == 0);
-
-        const auto
-    c = dual_t <2> { 32, 1, 0.5 };
-    CHECK(c.value == 32);
-    CHECK(c.differentials[0] == 0);
-    CHECK(c.differentials[1] == 0.5);
 }
 SUBCASE("A dual with no differentials behaves normal number")
 {
         const auto
-    x = dual_t <1> { 3, 0 };
+    x = independent_variable <1> (3, 0);
         const auto
     p1 = 2 * x;
     CHECK(p1.value == 6);
@@ -75,20 +97,10 @@ SUBCASE("A dual with no differentials behaves normal number")
     CHECK(p2.value == 6);
     CHECK(p2.differentials[0] == 2);
 }
-SUBCASE("Casting from underlying type")
-{
-    // This is used to initialize a sum
-        const auto
-    x =static_cast <dual_t <3>> (0);
-    CHECK(x.value == 0);
-        const auto
-    y =static_cast <dual_t <3>> (1);
-    CHECK(y.value == 1);
-}
 SUBCASE("Arithmetic, one value")
 {
         const auto
-    x = dual_t <1> { 2, 0 };
+    x = independent_variable <1> (2, 0);
     CHECK((+x).value == 2);
     CHECK((-x).value == -2);
     CHECK(x == 2);
@@ -121,7 +133,7 @@ SUBCASE("Arithmetic, one value")
     }
     {
             auto
-        f = dual_t <1> { 1, 0 };
+        f = independent_variable <1> (1, 0);
         f += 1;
         CHECK(f.value == 2);
         CHECK(f.differentials[0] == 1);
@@ -140,7 +152,7 @@ SUBCASE("Arithmetic, one value")
     }
     {
             auto
-        f = dual_t <1> { 1, 0 };
+        f = independent_variable <1> (1, 0);
         f -= 1;
         CHECK(f.value == 0);
         CHECK(f.differentials[0] == 1);
@@ -173,9 +185,9 @@ SUBCASE("Arithmetic, one value")
 SUBCASE("Arithmetic, two values")
 {
         const auto
-    x = dual_t <2> { 2, 0 };
+    x = independent_variable <2> (2, 0);
         const auto
-    y = dual_t <2> { 3, 1 };
+    y = independent_variable <2> (3, 1);
     CHECK(x != y);
     CHECK(x <  y);
     CHECK(y >  x);
@@ -213,7 +225,7 @@ SUBCASE("Arithmetic, two values")
 SUBCASE("Functions, one value")
 {
         const auto
-    x = dual_t <1> { 0.5, 0 };
+    x = independent_variable <1> (0.5, 0);
     {
             const auto
         f = acos (x);
@@ -251,7 +263,7 @@ SUBCASE("Functions, one value")
         CHECK(f.differentials[0] == 1 + f.value * f.value);
     }
         const auto
-    y = dual_t <1> { 2, 0 };
+    y = independent_variable <1> (2, 0);
     {
             const auto
         f = acosh (y);
@@ -358,9 +370,9 @@ SUBCASE("Functions, one value")
 SUBCASE("Functions, two values")
 {
         const auto
-    x = dual_t <2> { 2, 0 };
+    x = independent_variable <2> (2, 0);
         const auto
-    y = dual_t <2> { 3, 1 };
+    y = independent_variable <2> (3, 1);
     {
             const auto
         f = atan2 (y, x);
@@ -428,11 +440,11 @@ SUBCASE("Functions, two values")
 SUBCASE("Functions, three values")
 {
         const auto
-    x = dual_t <3> { 2, 0 };
+    x = independent_variable <3> (2, 0);
         const auto
-    y = dual_t <3> { 1, 1 };
+    y = independent_variable <3> (1, 1);
         const auto
-    z = dual_t <3> { 3, 2 };
+    z = independent_variable <3> (3, 2);
     {
             const auto
         f = hypot (x, y, z);
@@ -487,11 +499,11 @@ SUBCASE("Functions, three values")
 SUBCASE("Polynomials")
 {
         const auto
-    x = dual_t <3> { 2, 0 };
+    x = independent_variable <3> (2, 0);
         const auto
-    y = dual_t <3> { 3, 1 };
+    y = independent_variable <3> (3, 1);
         const auto
-    z = dual_t <3> { 4, 2 };
+    z = independent_variable <3> (4, 2);
         const auto
     f = 3 * pow (x, 3) + 4 * pow (y, 2) + 5 * z + 3;
     CHECK(f.value == 83);
@@ -502,9 +514,9 @@ SUBCASE("Polynomials")
 SUBCASE("Unused dimensions")
 {
         const auto
-    x = dual_t <3> { 2, 0 };
+    x = independent_variable <3> (2, 0);
         const auto
-    y = dual_t <3> { 3, 1 };
+    y = independent_variable <3> (3, 1);
         const auto
     z = 4.;
         const auto

@@ -1,31 +1,25 @@
 #pragma once
 #include "calculisto/array/array.hpp"
-#include <algorithm>
 #include <cmath>
 #include <compare>
 #include <concepts>
 #include <cstddef>
 #include <numbers>
+#include <type_traits>
 
     namespace
 calculisto::automatic_differentiation
 {
     using calculisto::array::array_t;
 
-    namespace
-detail 
-{
-        template <std::size_t N, class T>
-        constexpr auto
-    zero_array ()
-    {
-            auto
-        r = array_t <T, N> {};
-        std::ranges::fill (r, static_cast <T> (0));
-        return r;
-    }
-} // namespace detail
-
+// A number with its differentials with respect to N independent variables.
+// It is an aggregate, like std::array: dual_t <N> {} is zero, dual_t <N> { x }
+// is the constant x, and an independent variable is made with
+// independent_variable. Unlike std::array, the differentials have a default
+// member initializer, so that the constant x can be written dual_t <N> { x }
+// without a warning about the missing initializer (-Wextra): default
+// initialization (dual_t <N> d;) leaves the value indeterminate, like that of
+// a double, but the differentials are zero.
     template <std::size_t N, class T = double>
     struct
 dual_t
@@ -36,34 +30,27 @@ dual_t
         T
     value;
         array_t <T, N>
-    differentials = detail::zero_array <N, T> ();
-
-    dual_t ()
-    {}
-
-    dual_t (T a_value, array_t <T, N> const& diffs)
-        : value { a_value }
-        , differentials { diffs }
-    {}
-
-    // This one should behave like a T
-        explicit
-    dual_t (T const& a_value)
-        : value { a_value }
-    {}
-
-    dual_t (T a_value, std::size_t index)
-        : value { a_value }
-    {
-        differentials.at (index) = static_cast <T> (1);
-    }
-
-    dual_t (T a_value, std::size_t index, T differential_value)
-        : value { a_value }
-    {
-        differentials.at (index) = differential_value;
-    }
+    differentials {};
 };
+
+    template <class T, std::size_t N>
+dual_t (T, array_t <T, N>) -> dual_t <N, T>;
+
+// The independent variable number index (counting from zero) among N, with
+// the given value: its differential with respect to itself is one, and the
+// others are zero. Throws std::out_of_range if index >= N. As for dual_t, T
+// is double unless given: it is not deduced from the value, so that
+// independent_variable <N> (2, 0) is not a dual of int.
+    template <std::size_t N, class T = double>
+    constexpr dual_t <N, T>
+independent_variable (std::type_identity_t <T> value, std::size_t index)
+{
+        auto
+    r = dual_t <N, T> { value };
+    r.differentials.at (index) = T { 1 };
+    return r;
+}
+
     namespace
 detail
 {
