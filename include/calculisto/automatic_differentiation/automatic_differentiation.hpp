@@ -211,7 +211,7 @@ detail
     {
         return dual_t { 
               a / b.value
-            , -b.differentials / b.value / b.value
+            , -b.differentials * a / b.value / b.value
         };
     }
         template <std::size_t N, class T, class U>

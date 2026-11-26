@@ -594,6 +594,32 @@ SUBCASE("Functions of one argument")
         }, { 0.1, 0.5, 2, 10 });
     }
 }
+SUBCASE("Arithmetic")
+{
+    for (auto const& [x0, y0]: { std::pair { 3., 2. }, { -0.5, 4. }, { 2., -0.25 } })
+    {
+            const auto
+        x = opaque <Real> (x0);
+            const auto
+        y = opaque <Real> (y0);
+        check_function ([] (auto const& a, auto const& b) { return a + b; }
+            , std::array { x, y }
+            , std::array <Real, 2> { 1, 1 }
+        );
+        check_function ([] (auto const& a, auto const& b) { return a - b; }
+            , std::array { x, y }
+            , std::array <Real, 2> { 1, -1 }
+        );
+        check_function ([] (auto const& a, auto const& b) { return a * b; }
+            , std::array { x, y }
+            , std::array { y, x }
+        );
+        check_function ([] (auto const& a, auto const& b) { return a / b; }
+            , std::array { x, y }
+            , std::array { 1 / y, -x / (y * y) }
+        );
+    }
+}
 SUBCASE("Functions of two arguments")
 {
     SUBCASE("atan2")
