@@ -232,18 +232,20 @@ detail
     acos (dual_t <N, T> const& a)
     {
             using std::acos, std::sqrt;
+        // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
         return dual_t { 
               acos (a.value)
-            , -a.differentials / sqrt (1 - a.value * a.value) };
+            , -a.differentials / sqrt ((1 - a.value) * (1 + a.value)) };
     }
         template <std::size_t N, class T>
         auto
     asin (dual_t <N, T> const& a)
     {
             using std::asin, std::sqrt;
+        // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
         return dual_t { 
               asin (a.value)
-            , a.differentials / sqrt (1 - a.value * a.value) };
+            , a.differentials / sqrt ((1 - a.value) * (1 + a.value)) };
     }
         template <std::size_t N, class T>
         auto
@@ -315,9 +317,10 @@ detail
     acosh (dual_t <N, T> const& a)
     {
             using std::acosh, std::sqrt;
+        // (x - 1) (x + 1) rather than x^2 - 1, which cancels near x = 1.
         return dual_t { 
               acosh (a.value)
-            , a.differentials / sqrt (a.value * a.value - 1) };
+            , a.differentials / sqrt ((a.value - 1) * (a.value + 1)) };
     }
         template <std::size_t N, class T>
         auto
@@ -333,9 +336,10 @@ detail
     atanh (dual_t <N, T> const& a)
     {
             using std::atanh;
+        // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
         return dual_t { 
               atanh (a.value)
-            , a.differentials / (1 - a.value * a.value) };
+            , a.differentials / ((1 - a.value) * (1 + a.value)) };
     }
         template <std::size_t N, class T>
         auto
@@ -355,10 +359,12 @@ detail
         auto
     tanh (dual_t <N, T> const& a)
     {
-            using std::tanh;
+            using std::tanh, std::cosh;
+        // 1 / cosh^2 rather than 1 - tanh^2, which cancels for large |x|, and
+        // squaring 1 / cosh rather than cosh, which would overflow first.
             const auto
-        tmp = tanh (a.value);
-        return dual_t { tmp, a.differentials * (1 - tmp * tmp) };
+        tmp = 1 / cosh (a.value);
+        return dual_t { tanh (a.value), a.differentials * tmp * tmp };
     }
         template <std::size_t N, class T>
         auto

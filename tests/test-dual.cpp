@@ -427,12 +427,12 @@ SUBCASE("Functions of one argument")
         check_unary_function <Real> (FUNCTION (acos), [&] (Real x)
         {
             return -inverse_sqrt_one_minus_square (x);
-        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
+        }, { -0.999, -0.9, -0.5, 0.1, 0.5, 0.9, 0.999 });
     }
     SUBCASE("asin")
     {
         check_unary_function <Real> (FUNCTION (asin), inverse_sqrt_one_minus_square
-            , { -0.9, -0.5, 0.1, 0.5, 0.9 });
+            , { -0.999, -0.9, -0.5, 0.1, 0.5, 0.9, 0.999 });
     }
     SUBCASE("atan")
     {
@@ -467,7 +467,7 @@ SUBCASE("Functions of one argument")
         check_unary_function <Real> (FUNCTION (acosh), [] (Real x)
         {
             return 1 / std::sqrt ((x - 1) * (x + 1));
-        }, { 1.5, 2, 10 });
+        }, { 1.001, 1.5, 2, 10 });
     }
     SUBCASE("asinh")
     {
@@ -481,7 +481,7 @@ SUBCASE("Functions of one argument")
         check_unary_function <Real> (FUNCTION (atanh), [] (Real x)
         {
             return 1 / ((1 - x) * (1 + x));
-        }, { -0.9, -0.5, 0.1, 0.5, 0.9 });
+        }, { -0.999, -0.9, -0.5, 0.1, 0.5, 0.9, 0.999 });
     }
     SUBCASE("cosh")
     {
@@ -502,7 +502,7 @@ SUBCASE("Functions of one argument")
         check_unary_function <Real> (FUNCTION (tanh), [] (Real x)
         {
             return 1 / (std::cosh (x) * std::cosh (x));
-        }, { -2, -0.5, 0.1, 0.5, 2 });
+        }, { -5, -2, -0.5, 0.1, 0.5, 2, 5 });
     }
     SUBCASE("exp")
     {
