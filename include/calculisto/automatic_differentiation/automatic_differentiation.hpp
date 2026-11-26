@@ -27,10 +27,12 @@ dual_t
 {
         using
     value_type = T;
+        using
+    differentials_type = array_t <T, N>;
 
-        T
+        value_type
     value;
-        array_t <T, N>
+        differentials_type
     differentials {};
 };
 

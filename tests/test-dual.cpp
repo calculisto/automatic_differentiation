@@ -413,6 +413,10 @@ SUBCASE("Construction")
     // An aggregate, like std::array.
     static_assert (std::is_aggregate_v <dual_t <2>>);
 
+    // The types of the value and of the differentials.
+    static_assert (std::same_as <dual_t <2, float>::value_type, float>);
+    static_assert (std::same_as <dual_t <2, float>::differentials_type, array_t <float, 2>>);
+
     // Value-initialization gives zero, like double {}.
         constexpr auto
     zero = dual_t <2> {};
