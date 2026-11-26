@@ -1,9 +1,9 @@
 #include <doctest/doctest.h>
     using doctest::Approx;
-#include "../include/calculisto/auto_diff/dual.hpp"
-    using namespace calculisto::auto_diff;
+#include "../include/calculisto/automatic_differentiation/automatic_differentiation.hpp"
+    using namespace calculisto::automatic_differentiation;
 
-TEST_CASE("dual.hpp")
+TEST_CASE("automatic_differentiation.hpp")
 {
 SUBCASE("Construction")
 {
@@ -480,4 +480,4 @@ SUBCASE("Unused dimensions")
     CHECK(f.differentials[2] == 0);
 }
     
-} // TEST_CASE("dual.hpp")
+} // TEST_CASE("automatic_differentiation.hpp")

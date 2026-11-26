@@ -7,7 +7,7 @@
     using fmt::println;
 
     namespace
-calculisto::auto_diff
+calculisto::automatic_differentiation
 {
 
     namespace
@@ -627,7 +627,7 @@ dual_t
             , a.differentials / 2. / tmp
         };
     }
-} // namespace calculisto::auto_diff
+} // namespace calculisto::automatic_differentiation
 
 
 // TODO: swap

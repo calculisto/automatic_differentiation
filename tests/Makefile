@@ -13,7 +13,7 @@ tests: tests.o test-dual.o
 
 tests.o: tests.cpp
 
-test-dual.o: test-dual.cpp ../include/calculisto/auto_diff/dual.hpp
+test-dual.o: test-dual.cpp ../include/calculisto/automatic_differentiation/automatic_differentiation.hpp
 	$(CXX) $(CXXFLAGS) -c -o test-dual.o test-dual.cpp
 
 clean: 
