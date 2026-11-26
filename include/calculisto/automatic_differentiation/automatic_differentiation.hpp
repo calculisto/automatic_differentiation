@@ -1,14 +1,14 @@
 #pragma once
 #include "calculisto/array/array.hpp"
-    using calculisto::array::array_t;
 #include <algorithm>
 #include <cmath>
-#include <fmt/format.h>
-    using fmt::println;
+#include <cstddef>
+#include <numbers>
 
     namespace
 calculisto::automatic_differentiation
 {
+    using calculisto::array::array_t;
 
     namespace
 detail 

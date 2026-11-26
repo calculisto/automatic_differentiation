@@ -2,7 +2,6 @@
 
 CXXFLAGS+=-g -I../git_submodules/calculisto/array/include
 LINK.o=$(LINK.cc)
-LDLIBS+=-lfmt
 
 all: check
 
