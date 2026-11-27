@@ -85,7 +85,13 @@ function_checks
 
     // Checks f at x, with the arguments selected by Mask being duals and the
     // others values: partials are the partial derivatives of f at x.
-        template <unsigned Mask, class F, class Real, std::size_t K, std::size_t... I>
+        template <
+              unsigned Mask
+            , class F
+            , class Real
+            , std::size_t K
+            , std::size_t... I
+        >
         void
     check_function_mask (
           F f
@@ -104,10 +110,21 @@ function_checks
         magnitude = Real {};
         for (std::size_t i = 0; i < K; ++i)
         {
-            INFO ("Partial derivative ", i, ": ", r.differentials[i], " expected ", (((Mask >> i) & 1u) ? 2 * partials[i] : Real {}));
+            INFO (
+                  "Partial derivative "
+                , i
+                , ": "
+                , r.differentials[i]
+                , " expected "
+                , (((Mask >> i) & 1u) ? 2 * partials[i] : Real {})
+            );
             if ((Mask >> i) & 1u)
             {
-                CHECK(within_ulps <Real> (r.differentials[i], 2 * partials[i], ulps));
+                CHECK(within_ulps <Real> (
+                      r.differentials[i]
+                    , 2 * partials[i]
+                    , ulps
+                ));
                     const auto
                 term = static_cast <Real> (shared_seeds[i]) * partials[i];
                 shared += term;
@@ -119,7 +136,12 @@ function_checks
             }
         }
         // The terms may cancel: the error is relative to their magnitude.
-        INFO ("Shared differential: ", r.differentials[K], " expected ", shared);
+        INFO (
+              "Shared differential: "
+            , r.differentials[K]
+            , " expected "
+            , shared
+        );
         CHECK(std::abs (r.differentials[K] - shared)
             <= ulps * std::numeric_limits <Real>::epsilon () * magnitude);
         CHECK(r.differentials[K + 1] == 0);
@@ -169,7 +191,13 @@ second_order_checks
     // Checks f at x, with the arguments selected by Mask being nested duals
     // and the others values: partials and second_partials are the first and
     // second partial derivatives of f at x.
-        template <unsigned Mask, class F, class Real, std::size_t K, std::size_t... I>
+        template <
+              unsigned Mask
+            , class F
+            , class Real
+            , std::size_t K
+            , std::size_t... I
+        >
         void
     check_function_mask (
           F f
@@ -181,7 +209,9 @@ second_order_checks
         INFO ("Nested duals: mask ", Mask);
             const auto
         r = f (argument <Mask, I, K> (x[I])...);
-        static_assert (std::same_as <decltype (r), dual_t <K, dual_t <K, Real>> const>);
+        static_assert (
+            std::same_as <decltype (r), dual_t <K, dual_t <K, Real>> const>
+        );
         CHECK(r.value.value == f (x[I]...));
         // The second derivatives are accurate relative to the size of the
         // terms they are made of, not to their own value where they are much
@@ -196,6 +226,8 @@ second_order_checks
                 scale = std::max (scale, std::abs (second_partial));
             }
         }
+            const auto
+        tolerance = ulps * std::numeric_limits <Real>::epsilon () * scale;
             constexpr auto
         is_dual = [] (std::size_t i) { return ((Mask >> i) & 1u) != 0; };
         for (std::size_t i = 0; i < K; ++i)
@@ -208,16 +240,28 @@ second_order_checks
             for (std::size_t j = 0; j < K; ++j)
             {
                     const auto
-                second_partial = is_dual (i) and is_dual (j) ? second_partials[i][j] : Real {};
-                INFO ("Second partial derivative ", i, ", ", j, ": ", r.differentials[i].differentials[j], " expected ", second_partial);
+                second_partial = is_dual (i) and is_dual (j)
+                    ? second_partials[i][j]
+                    : Real {};
+                    const auto&
+                computed = r.differentials[i].differentials[j];
+                INFO (
+                      "Second partial derivative "
+                    , i
+                    , ", "
+                    , j
+                    , ": "
+                    , computed
+                    , " expected "
+                    , second_partial
+                );
                 if (is_dual (i) and is_dual (j))
                 {
-                    CHECK(std::abs (r.differentials[i].differentials[j] - second_partial)
-                        <= ulps * std::numeric_limits <Real>::epsilon () * scale);
+                    CHECK(std::abs (computed - second_partial) <= tolerance);
                 }
                 else
                 {
-                    CHECK(r.differentials[i].differentials[j] == 0);
+                    CHECK(computed == 0);
                 }
             }
         }
@@ -299,18 +343,39 @@ check_unary_function (
         check_function (f, std::array { x }, std::array { derivative (x) });
         INFO ("Second derivative at x = ", x);
             const auto
-        r = f (independent_variable <1, dual_t <1, Real>> (independent_variable <1, Real> (x, 0), 0));
-        static_assert (std::same_as <decltype (r), dual_t <1, dual_t <1, Real>> const>);
+        r = f (independent_variable <1, dual_t <1, Real>> (
+              independent_variable <1, Real> (x, 0)
+            , 0
+        ));
+        static_assert (
+            std::same_as <decltype (r), dual_t <1, dual_t <1, Real>> const>
+        );
         CHECK(r.value.value == f (x));
-        CHECK(within_ulps <Real> (r.value.differentials[0], derivative (x), ulps));
-        CHECK(within_ulps <Real> (r.differentials[0].value, derivative (x), ulps));
-        CHECK(within_ulps <Real> (r.differentials[0].differentials[0], second_derivative (x), ulps));
+        CHECK(within_ulps <Real> (
+              r.value.differentials[0]
+            , derivative (x)
+            , ulps
+        ));
+        CHECK(within_ulps <Real> (
+              r.differentials[0].value
+            , derivative (x)
+            , ulps
+        ));
+        CHECK(within_ulps <Real> (
+              r.differentials[0].differentials[0]
+            , second_derivative (x)
+            , ulps
+        ));
     }
 }
 
 // The functions to check, callable with values and with duals.
-#define FUNCTION(name) \
-    [] (auto const&... arguments) { using std::name; return name (arguments...); }
+#define FUNCTION(name)                                                        \
+    [] (auto const&... arguments)                                             \
+    {                                                                         \
+        using std::name;                                                      \
+        return name (arguments...);                                           \
+    }
 
 // Arguments of different types, for the tests of the mixed types: the value
 // of x, and x converted to Result, a dual with dual_cast and a number to the

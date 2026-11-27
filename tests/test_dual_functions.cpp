@@ -41,14 +41,20 @@ SUBCASE("Functions of one argument")
     {
         check_unary_function <Real> (FUNCTION (acos)
             , [&] (Real x) { return -inverse_sqrt_one_minus_square (x); }
-            , [&] (Real x) { return -x * cube (inverse_sqrt_one_minus_square (x)); }
+            , [&] (Real x)
+              {
+                  return -x * cube (inverse_sqrt_one_minus_square (x));
+              }
             , { -0.999, -0.9, -0.5, 0.1, 0.5, 0.9, 0.999 });
     }
     SUBCASE("asin")
     {
         check_unary_function <Real> (FUNCTION (asin)
             , inverse_sqrt_one_minus_square
-            , [&] (Real x) { return x * cube (inverse_sqrt_one_minus_square (x)); }
+            , [&] (Real x)
+              {
+                  return x * cube (inverse_sqrt_one_minus_square (x));
+              }
             , { -0.999, -0.9, -0.5, 0.1, 0.5, 0.9, 0.999 });
     }
     SUBCASE("atan")
@@ -76,14 +82,20 @@ SUBCASE("Functions of one argument")
     {
         check_unary_function <Real> (FUNCTION (tan)
             , [] (Real x) { return 1 / (std::cos (x) * std::cos (x)); }
-            , [] (Real x) { return 2 * std::tan (x) / (std::cos (x) * std::cos (x)); }
+            , [] (Real x)
+              {
+                  return 2 * std::tan (x) / (std::cos (x) * std::cos (x));
+              }
             , { -2, -0.5, 0.1, 0.5, 2 });
     }
     SUBCASE("acosh")
     {
         check_unary_function <Real> (FUNCTION (acosh)
             , [] (Real x) { return 1 / std::sqrt ((x - 1) * (x + 1)); }
-            , [&] (Real x) { return -x * cube (1 / std::sqrt ((x - 1) * (x + 1))); }
+            , [&] (Real x)
+              {
+                  return -x * cube (1 / std::sqrt ((x - 1) * (x + 1)));
+              }
             , { 1.001, 1.5, 2, 10 });
     }
     SUBCASE("asinh")
@@ -97,7 +109,10 @@ SUBCASE("Functions of one argument")
     {
         check_unary_function <Real> (FUNCTION (atanh)
             , [] (Real x) { return 1 / ((1 - x) * (1 + x)); }
-            , [] (Real x) { return 2 * x / ((1 - x) * (1 + x) * (1 - x) * (1 + x)); }
+            , [] (Real x)
+              {
+                  return 2 * x / ((1 - x) * (1 + x) * (1 - x) * (1 + x));
+              }
             , { -0.999, -0.9, -0.5, 0.1, 0.5, 0.9, 0.999 });
     }
     SUBCASE("cosh")
@@ -118,7 +133,10 @@ SUBCASE("Functions of one argument")
     {
         check_unary_function <Real> (FUNCTION (tanh)
             , [] (Real x) { return 1 / (std::cosh (x) * std::cosh (x)); }
-            , [] (Real x) { return -2 * std::tanh (x) / (std::cosh (x) * std::cosh (x)); }
+            , [] (Real x)
+              {
+                  return -2 * std::tanh (x) / (std::cosh (x) * std::cosh (x));
+              }
             , { -5, -2, -0.5, 0.1, 0.5, 2, 5 });
     }
     SUBCASE("exp")
@@ -174,7 +192,10 @@ SUBCASE("Functions of one argument")
     {
         check_unary_function <Real> (FUNCTION (cbrt)
             , [] (Real x) { return 1 / (3 * std::cbrt (x) * std::cbrt (x)); }
-            , [] (Real x) { return -2 / (9 * x * std::cbrt (x) * std::cbrt (x)); }
+            , [] (Real x)
+              {
+                  return -2 / (9 * x * std::cbrt (x) * std::cbrt (x));
+              }
             , { -2, -0.5, 0.1, 0.5, 2 });
     }
     SUBCASE("abs")
@@ -207,12 +228,21 @@ SUBCASE("Functions of one argument")
                 INFO ("x = ", x);
                     const auto
                 expected = static_cast <float> (
-                    2 * std::numbers::inv_sqrtpi * std::exp (-static_cast <double> (x) * x)
+                    2 * std::numbers::inv_sqrtpi
+                        * std::exp (-static_cast <double> (x) * x)
                 );
                     const auto
                 variable = independent_variable <1, float> (x, 0);
-                CHECK(within_ulps <float> (erf (variable).differentials[0], expected, ulps));
-                CHECK(within_ulps <float> (erfc (variable).differentials[0], -expected, ulps));
+                CHECK(within_ulps <float> (
+                      erf (variable).differentials[0]
+                    , expected
+                    , ulps
+                ));
+                CHECK(within_ulps <float> (
+                      erfc (variable).differentials[0]
+                    , -expected
+                    , ulps
+                ));
             }
         }
     }
@@ -238,15 +268,21 @@ SUBCASE("abs and fabs at 0")
     {
             const auto
         variable = independent_variable <1, Real> (opaque <Real> (x), 0);
-        CHECK(abs (variable).differentials[0] == static_cast <Real> (derivative));
-        CHECK(fabs (variable).differentials[0] == static_cast <Real> (derivative));
+        CHECK(abs (variable).differentials[0]
+            == static_cast <Real> (derivative));
+        CHECK(fabs (variable).differentials[0]
+            == static_cast <Real> (derivative));
     }
 }
 SUBCASE("Functions of two arguments")
 {
     SUBCASE("atan2")
     {
-        for (auto const& [y0, x0]: { std::pair { 3., 2. }, { 0.5, -1. }, { -2., 0.5 } })
+        for (auto const& [y0, x0]: {
+              std::pair { 3., 2. }
+            , { 0.5, -1. }
+            , { -2., 0.5 }
+        })
         {
                 const auto
             y = opaque <Real> (y0);
@@ -268,7 +304,11 @@ SUBCASE("Functions of two arguments")
     }
     SUBCASE("hypot")
     {
-        for (auto const& [x0, y0]: { std::pair { 2., 3. }, { -1., 0.5 }, { 0.5, -2. } })
+        for (auto const& [x0, y0]: {
+              std::pair { 2., 3. }
+            , { -1., 0.5 }
+            , { 0.5, -2. }
+        })
         {
                 const auto
             x = opaque <Real> (x0);
@@ -290,7 +330,11 @@ SUBCASE("Functions of two arguments")
     }
     SUBCASE("pow")
     {
-        for (auto const& [x0, y0]: { std::pair { 2., 3. }, { 0.5, -1.5 }, { 3., 0.5 } })
+        for (auto const& [x0, y0]: {
+              std::pair { 2., 3. }
+            , { 0.5, -1.5 }
+            , { 3., 0.5 }
+        })
         {
                 const auto
             x = opaque <Real> (x0);
@@ -302,7 +346,10 @@ SUBCASE("Functions of two arguments")
             cross = std::pow (x, y - 1) * (1 + y * log_x);
             check_function (FUNCTION (pow)
                 , std::array { x, y }
-                , std::array { y * std::pow (x, y - 1), std::pow (x, y) * log_x }
+                , std::array {
+                      y * std::pow (x, y - 1)
+                    , std::pow (x, y) * log_x
+                  }
                 , std::array {
                       std::array { y * (y - 1) * std::pow (x, y - 2), cross }
                     , std::array { cross, std::pow (x, y) * log_x * log_x }
@@ -324,7 +371,13 @@ SUBCASE("Functions of two arguments of <cmath>, after pow")
         return remquo (arguments..., &quotient);
     };
     // Away from the jumps of fmod and remainder, where the quotient changes.
-    for (auto const& [x0, y0]: { std::pair { 5.3, 2. }, { -5.3, 2. }, { 5.3, -2. }, { 0.7, 3. }, { 7.9, 2. } })
+    for (auto const& [x0, y0]: {
+          std::pair { 5.3, 2. }
+        , { -5.3, 2. }
+        , { 5.3, -2. }
+        , { 0.7, 3. }
+        , { 7.9, 2. }
+    })
     {
             const auto
         x = opaque <Real> (x0);
@@ -335,11 +388,31 @@ SUBCASE("Functions of two arguments of <cmath>, after pow")
         truncated = std::trunc (x / y);
             const auto
         nearest = std::nearbyint (x / y);
-        check_function (FUNCTION (fmod), std::array { x, y }, std::array { Real { 1 }, -truncated }, second_partials_t {});
-        check_function (FUNCTION (remainder), std::array { x, y }, std::array { Real { 1 }, -nearest }, second_partials_t {});
-        check_function (remquo_value, std::array { x, y }, std::array { Real { 1 }, -nearest }, second_partials_t {});
+        check_function (
+              FUNCTION (fmod)
+            , std::array { x, y }
+            , std::array { Real { 1 }, -truncated }
+            , second_partials_t {}
+        );
+        check_function (
+              FUNCTION (remainder)
+            , std::array { x, y }
+            , std::array { Real { 1 }, -nearest }
+            , second_partials_t {}
+        );
+        check_function (
+              remquo_value
+            , std::array { x, y }
+            , std::array { Real { 1 }, -nearest }
+            , second_partials_t {}
+        );
     }
-    for (auto const& [x0, y0]: { std::pair { 2., 3. }, { -2., 3. }, { 2., -3. }, { -2., -3. } })
+    for (auto const& [x0, y0]: {
+          std::pair { 2., 3. }
+        , { -2., 3. }
+        , { 2., -3. }
+        , { -2., -3. }
+    })
     {
             const auto
         x = opaque <Real> (x0);
@@ -348,19 +421,33 @@ SUBCASE("Functions of two arguments of <cmath>, after pow")
         INFO ("x = ", x, ", y = ", y);
             const auto
         sign = (x < 0) == (y < 0) ? Real { 1 } : Real { -1 };
-        check_function (FUNCTION (copysign), std::array { x, y }, std::array { sign, Real {} }, second_partials_t {});
+        check_function (
+              FUNCTION (copysign)
+            , std::array { x, y }
+            , std::array { sign, Real {} }
+            , second_partials_t {}
+        );
             const auto
         x_larger = x > y;
         check_function (FUNCTION (fdim), std::array { x, y }
-            , x_larger ? std::array <Real, 2> { 1, -1 } : std::array <Real, 2> { 0, 0 }
+            , x_larger ? std::array <Real, 2> { 1, -1 } : std::array <Real, 2> {
+                  0
+                , 0
+              }
             , second_partials_t {}
         );
         check_function (FUNCTION (fmax), std::array { x, y }
-            , x_larger ? std::array <Real, 2> { 1, 0 } : std::array <Real, 2> { 0, 1 }
+            , x_larger ? std::array <Real, 2> { 1, 0 } : std::array <Real, 2> {
+                  0
+                , 1
+              }
             , second_partials_t {}
         );
         check_function (FUNCTION (fmin), std::array { x, y }
-            , x_larger ? std::array <Real, 2> { 0, 1 } : std::array <Real, 2> { 1, 0 }
+            , x_larger ? std::array <Real, 2> { 0, 1 } : std::array <Real, 2> {
+                  1
+                , 0
+              }
             , second_partials_t {}
         );
     }
@@ -377,7 +464,14 @@ SUBCASE("fmax, fmin and fdim where the arguments are equal, or NaN")
     y = independent_variable <2, Real> (opaque <Real> (2), 1);
         const auto
     z = independent_variable <2, Real> (nan, 1);
-    for (auto const& r: { fmax (x, y), fmin (x, y), fmax (x, z), fmin (x, z), fmax (z, x), fmin (z, x) })
+    for (auto const& r: {
+          fmax (x, y)
+        , fmin (x, y)
+        , fmax (x, z)
+        , fmin (x, z)
+        , fmax (z, x)
+        , fmin (z, x)
+    })
     {
         CHECK(r.value == 2);
         CHECK(r.differentials[0] == 1);
@@ -394,7 +488,11 @@ SUBCASE("Functions of three arguments")
     SUBCASE("hypot")
     {
             const auto
-        x = std::array { opaque <Real> (2.), opaque <Real> (-1.), opaque <Real> (3.) };
+        x = std::array {
+              opaque <Real> (2.)
+            , opaque <Real> (-1.)
+            , opaque <Real> (3.)
+        };
             const auto
         h = std::hypot (x[0], x[1], x[2]);
             const auto
@@ -402,9 +500,21 @@ SUBCASE("Functions of three arguments")
         check_function (FUNCTION (hypot), x
             , std::array { x[0] / h, x[1] / h, x[2] / h }
             , std::array {
-                  std::array { (x[1] * x[1] + x[2] * x[2]) / h3, -x[0] * x[1] / h3, -x[0] * x[2] / h3 }
-                , std::array { -x[1] * x[0] / h3, (x[0] * x[0] + x[2] * x[2]) / h3, -x[1] * x[2] / h3 }
-                , std::array { -x[2] * x[0] / h3, -x[2] * x[1] / h3, (x[0] * x[0] + x[1] * x[1]) / h3 }
+                  std::array {
+                        (x[1] * x[1] + x[2] * x[2]) / h3
+                      , -x[0] * x[1] / h3
+                      , -x[0] * x[2] / h3
+                  }
+                , std::array {
+                      -x[1] * x[0] / h3
+                    , (x[0] * x[0] + x[2] * x[2]) / h3
+                    , -x[1] * x[2] / h3
+                  }
+                , std::array {
+                      -x[2] * x[0] / h3
+                    , -x[2] * x[1] / h3
+                    , (x[0] * x[0] + x[1] * x[1]) / h3
+                  }
               }
         );
     }
@@ -412,7 +522,11 @@ SUBCASE("Functions of three arguments")
 SUBCASE("Functions of three arguments of <cmath>")
 {
         const auto
-    x = std::array { opaque <Real> (2.), opaque <Real> (-3.), opaque <Real> (0.5) };
+    x = std::array {
+          opaque <Real> (2.)
+        , opaque <Real> (-3.)
+        , opaque <Real> (0.5)
+    };
     check_function (FUNCTION (fma), x
         , std::array { x[1], x[0], Real { 1 } }
         , std::array {
@@ -422,7 +536,11 @@ SUBCASE("Functions of three arguments of <cmath>")
           }
     );
         const auto
-    t = std::array { opaque <Real> (1.), opaque <Real> (3.), opaque <Real> (0.25) };
+    t = std::array {
+          opaque <Real> (1.)
+        , opaque <Real> (3.)
+        , opaque <Real> (0.25)
+    };
     check_function (FUNCTION (lerp), t
         , std::array { 1 - t[2], t[2], t[1] - t[0] }
         , std::array {
@@ -446,7 +564,11 @@ SUBCASE("Functions with an exponent, frexp and modf")
             INFO ("n = ", n);
                 const auto
             scaled = std::ldexp (Real { 1 }, n);
-            for (auto const& r: { ldexp (variable, n), scalbn (variable, n), scalbln (variable, long { n }) })
+            for (auto const& r: {
+                  ldexp (variable, n)
+                , scalbn (variable, n)
+                , scalbln (variable, long { n })
+            })
             {
                 CHECK(r.value == std::ldexp (x, n));
                 CHECK(r.differentials[0] == scaled);
@@ -481,8 +603,16 @@ SUBCASE("Functions with an exponent, frexp and modf")
     quotient;
         int
     expected_quotient;
-    static_cast <void> (remquo (independent_variable <1, Real> (opaque <Real> (7.9), 0), Real { 2 }, &quotient));
-    static_cast <void> (std::remquo (opaque <Real> (7.9), Real { 2 }, &expected_quotient));
+    static_cast <void> (remquo (
+          independent_variable <1, Real> (opaque <Real> (7.9), 0)
+        , Real { 2 }
+        , &quotient
+    ));
+    static_cast <void> (std::remquo (
+          opaque <Real> (7.9)
+        , Real { 2 }
+        , &expected_quotient
+    ));
     CHECK(quotient == expected_quotient);
 }
 SUBCASE("Functions constant between their jumps")
@@ -498,7 +628,10 @@ SUBCASE("Functions constant between their jumps")
             const auto
         variable = independent_variable <2, Real> (x, 0);
             const auto
-        nested = independent_variable <2, dual_t <2, Real>> (independent_variable <2, Real> (x, 0), 1);
+        nested = independent_variable <2, dual_t <2, Real>> (
+              independent_variable <2, Real> (x, 0)
+            , 1
+        );
             const auto
         check = [&] (auto f)
         {
@@ -510,7 +643,9 @@ SUBCASE("Functions constant between their jumps")
             CHECK(r.differentials[1] == 0);
                 const auto
             r_nested = f (nested);
-            static_assert (std::same_as <decltype (r_nested), nested_real_t const>);
+            static_assert (
+                std::same_as <decltype (r_nested), nested_real_t const>
+            );
             CHECK(identical (r_nested, nested_real_t { { f (x) } }));
         };
         check (FUNCTION (logb));
@@ -525,7 +660,9 @@ SUBCASE("Functions constant between their jumps")
         {
                 const auto
             r = f (variable);
-            static_assert (std::same_as <decltype (f (variable)), decltype (f (x))>);
+            static_assert (
+                std::same_as <decltype (f (variable)), decltype (f (x))>
+            );
             CHECK(r == f (x));
             CHECK(f (nested) == f (x));
         };
@@ -543,7 +680,14 @@ SUBCASE("Classification and comparison")
     nan = std::numeric_limits <Real>::quiet_NaN ();
         const auto
     inf = std::numeric_limits <Real>::infinity ();
-    for (auto const value: { Real { 1 }, Real { -0. }, nan, inf, -inf, std::numeric_limits <Real>::denorm_min () })
+    for (auto const value: {
+          Real { 1 }
+        , Real { -0. }
+        , nan
+        , inf
+        , -inf
+        , std::numeric_limits <Real>::denorm_min ()
+    })
     {
         INFO ("value = ", value);
         for (auto const differential: { Real { 0 }, Real { 1 }, nan, inf })
@@ -556,17 +700,24 @@ SUBCASE("Classification and comparison")
             CHECK(isnan (a) == std::isnan (value));
             CHECK(isnormal (a) == std::isnormal (value));
             CHECK(signbit (a) == std::signbit (value));
-            CHECK(isnan (dual_t <2, dual_t <2, Real>> { { a } }) == std::isnan (value));
+            CHECK(isnan (dual_t <2, dual_t <2, Real>> { { a } })
+                == std::isnan (value));
             for (auto const other: { Real { 1 }, Real { 2 }, nan })
             {
                     const auto
-                b = dual_t <2, Real> { opaque <Real> (other), { 0, differential } };
+                b = dual_t <2, Real> {
+                      opaque <Real> (other)
+                    , { 0, differential }
+                };
                 CHECK(isgreater (a, b) == std::isgreater (value, other));
-                CHECK(isgreaterequal (a, other) == std::isgreaterequal (value, other));
+                CHECK(isgreaterequal (a, other)
+                    == std::isgreaterequal (value, other));
                 CHECK(isless (value, b) == std::isless (value, other));
                 CHECK(islessequal (a, b) == std::islessequal (value, other));
-                CHECK(islessgreater (a, other) == std::islessgreater (value, other));
-                CHECK(isunordered (value, b) == std::isunordered (value, other));
+                CHECK(islessgreater (a, other)
+                    == std::islessgreater (value, other));
+                CHECK(isunordered (value, b)
+                    == std::isunordered (value, other));
             }
         }
     }
@@ -616,7 +767,8 @@ SUBCASE("A zero differential stays zero")
         const auto
     zero = opaque <Real> (0);
     for (auto const& r: {
-          atan2 (x, y), hypot (x, y), hypot (x, y, zero), hypot (x, zero, y), hypot (zero, x, y)
+          atan2 (x, y), hypot (x, y), hypot (x, y, zero)
+        , hypot (x, zero, y), hypot (zero, x, y)
     }){
         CHECK(std::isnan (r.differentials[0]));
         CHECK(std::isnan (r.differentials[1]));
@@ -645,7 +797,8 @@ SUBCASE("Signed zeros, as with a number")
             const auto
         b = dual_t <2, Real> { zero, { 0, -1 } };
         CHECK(hypot (a, b).differentials[1] == 0);
-        CHECK(std::signbit (hypot (a, b).differentials[1]) == std::signbit (hypot (a.value, b).differentials[1]));
+        CHECK(std::signbit (hypot (a, b).differentials[1])
+            == std::signbit (hypot (a.value, b).differentials[1]));
         CHECK(std::signbit (hypot (a, b).differentials[1]));
     }
     {
@@ -654,7 +807,8 @@ SUBCASE("Signed zeros, as with a number")
         y = dual_t <2, Real> { zero, { 1, 0 } };
             const auto
         x = dual_t <2, Real> { opaque <Real> (2), { 0, 1 } };
-        CHECK(std::signbit (atan2 (y, x).differentials[1]) == std::signbit (atan2 (y.value, x).differentials[1]));
+        CHECK(std::signbit (atan2 (y, x).differentials[1])
+            == std::signbit (atan2 (y.value, x).differentials[1]));
         CHECK(std::signbit (atan2 (y, x).differentials[1]));
     }
 }
@@ -679,7 +833,8 @@ SUBCASE("pow at the boundaries of its domain")
         {
             return std::isnan (result);
         }
-        return result == expected and std::signbit (result) == std::signbit (expected);
+        return result == expected
+            and std::signbit (result) == std::signbit (expected);
     };
         struct
     point_t
@@ -708,21 +863,30 @@ SUBCASE("pow at the boundaries of its domain")
         // With an unused differential, which must stay zero.
         {
                 const auto
-            r = pow (independent_variable <3, Real> (a, 0), independent_variable <3, Real> (b, 1));
+            r = pow (
+                  independent_variable <3, Real> (a, 0)
+                , independent_variable <3, Real> (b, 1)
+            );
             CHECK(same (r.value, std::pow (a, b)));
             CHECK(same (r.differentials[0], partial_a));
             CHECK(same (r.differentials[1], partial_b));
             CHECK(same (r.differentials[2], 0));
         }
         for (auto const& r: {
-              pow (independent_variable <2, Real> (a, 0), dual_t <2, Real> { b })
+              pow (
+                    independent_variable <2, Real> (a, 0)
+                  , dual_t <2, Real> { b }
+              )
             , pow (independent_variable <2, Real> (a, 0), b)
         }){
             CHECK(same (r.differentials[0], partial_a));
             CHECK(same (r.differentials[1], 0));
         }
         for (auto const& r: {
-              pow (dual_t <2, Real> { a }, independent_variable <2, Real> (b, 0))
+              pow (
+                    dual_t <2, Real> { a }
+                  , independent_variable <2, Real> (b, 0)
+              )
             , pow (a, independent_variable <2, Real> (b, 0))
         }){
             CHECK(same (r.differentials[0], partial_b));
@@ -743,9 +907,14 @@ SUBCASE("pow with nested duals")
         // a = 2 + s t, whose differential t ds is zero at t = 0, but not its
         // derivative with respect to t: d2/dt ds pow (a, 3) = 3 a^2 = 12.
             const auto
-        a = nested_real_t { inner_t { opaque <Real> (2) }, { inner_t { 0, { 1 } } } };
+        a = nested_real_t {
+              inner_t { opaque <Real> (2) }
+            , { inner_t { 0, { 1 } } }
+        };
+            const auto
+        three = nested_real_t { inner_t { 3 } };
         CHECK(pow (a, 3).differentials[0].differentials[0] == 12);
-        CHECK(pow (a, nested_real_t { inner_t { 3 } }).differentials[0].differentials[0] == 12);
+        CHECK(pow (a, three).differentials[0].differentials[0] == 12);
     }
     {
         // a = 2 + s and b = t: b is zero, but not its derivative, so that

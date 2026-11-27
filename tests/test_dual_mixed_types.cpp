@@ -9,7 +9,10 @@ TEST_CASE("Mixed types")
         const auto
     dual_double = dual_t <2, double> { opaque <double> (1.3), { -0.5, 5 } };
         const auto
-    dual_long_double = dual_t <2, long double> { opaque <long double> (0.4), { 1, 0.25 } };
+    dual_long_double = dual_t <2, long double> {
+          opaque <long double> (0.4)
+        , { 1, 0.25 }
+    };
         const auto
     float_number = opaque <float> (0.6);
         const auto
@@ -81,9 +84,12 @@ SUBCASE("Functions of two arguments of <cmath>, after pow")
 SUBCASE("Comparison functions")
 {
     // Of the values, converted as for the comparison operators.
-    CHECK(isgreater (dual_double, dual_float) == std::isgreater (dual_double.value, dual_float.value));
-    CHECK(isless (dual_float, double_number) == std::isless (dual_float.value, double_number));
-    CHECK(islessequal (int_number, dual_long_double) == std::islessequal (int_number, dual_long_double.value));
+    CHECK(isgreater (dual_double, dual_float)
+        == std::isgreater (dual_double.value, dual_float.value));
+    CHECK(isless (dual_float, double_number)
+        == std::isless (dual_float.value, double_number));
+    CHECK(islessequal (int_number, dual_long_double)
+        == std::islessequal (int_number, dual_long_double.value));
 }
 SUBCASE("Functions of three arguments")
 {
@@ -114,7 +120,10 @@ SUBCASE("Nested duals")
         const auto
     nested_float = nested_float_t {
           { opaque <float> (0.7), { 2, -3 } }
-        , { dual_t <2, float> { 1, { 0.5, 0 } }, dual_t <2, float> { -2, { 0, 4 } } }
+        , {
+              dual_t <2, float> { 1, { 0.5, 0 } }
+            , dual_t <2, float> { -2, { 0, 4 } }
+          }
     };
         const auto
     nested_double = nested_double_t {
@@ -131,10 +140,26 @@ SUBCASE("Nested duals")
     static_assert (not has_dual_cast <nested_float_t, dual_t <1>>);
     static_assert (not has_dual_cast <dual_t <2, float>, dual_t <2>>);
 
-    check_mixed ([] (auto const& a, auto const& b) { return a + b; }, nested_float, nested_double);
-    check_mixed ([] (auto const& a, auto const& b) { return a * b; }, nested_double, nested_float);
-    check_mixed ([] (auto const& a, auto const& b) { return a / b; }, nested_float, double_number);
-    check_mixed ([] (auto const& a, auto const& b) { return a - b; }, int_number, nested_double);
+    check_mixed (
+          [] (auto const& a, auto const& b) { return a + b; }
+        , nested_float
+        , nested_double
+    );
+    check_mixed (
+          [] (auto const& a, auto const& b) { return a * b; }
+        , nested_double
+        , nested_float
+    );
+    check_mixed (
+          [] (auto const& a, auto const& b) { return a / b; }
+        , nested_float
+        , double_number
+    );
+    check_mixed (
+          [] (auto const& a, auto const& b) { return a - b; }
+        , int_number
+        , nested_double
+    );
     check_mixed (FUNCTION (atan2), nested_float, nested_double);
     check_mixed (FUNCTION (hypot), double_number, nested_float);
     check_mixed (FUNCTION (hypot), nested_float, int_number, nested_double);
@@ -163,8 +188,10 @@ SUBCASE("Compound assignment")
         auto
     d = dual_float;
     d += double_number;
-    CHECK(d.value == static_cast <float> (dual_float.value + double_number));
+        const auto
+    sum = static_cast <float> (dual_float.value + double_number);
+    CHECK(d.value == sum);
     d -= double_number;
-    CHECK(d.value == static_cast <float> (static_cast <float> (dual_float.value + double_number) - double_number));
+    CHECK(d.value == static_cast <float> (sum - double_number));
 }
 }

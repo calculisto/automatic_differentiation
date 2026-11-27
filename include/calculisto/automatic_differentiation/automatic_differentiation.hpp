@@ -149,7 +149,11 @@ detail
     // the same index of the differentials given.
         template <class F, class D, std::size_t N, class... E>
         constexpr auto
-    elementwise (F f, std::array <D, N> const& differentials, std::array <E, N> const&... others) noexcept
+    elementwise (
+          F f
+        , std::array <D, N> const& differentials
+        , std::array <E, N> const&... others
+    ) noexcept
     {
             using
         result_t = decltype (f (differentials[0], others[0]...));
@@ -168,7 +172,10 @@ detail
     // change a derivative, as in pow.
         template <class D, std::size_t N, class F>
         constexpr auto
-    transform_differentials (std::array <D, N> const& differentials, F f) noexcept
+    transform_differentials (
+          std::array <D, N> const& differentials
+        , F f
+    ) noexcept
     {
             using
         result_t = decltype (f (differentials[0]));
@@ -302,7 +309,8 @@ detail
 
         template <class X, class... Y>
         constexpr bool
-    all_compatible <X, Y...> = (compatible <X, Y> and ...) and all_compatible <Y...>;
+    all_compatible <X, Y...> = (compatible <X, Y> and ...)
+        and all_compatible <Y...>;
 
     // The arguments of a function of duals and numbers: at least one dual,
     // numbers of the arithmetic types, and duals of the same structure.
@@ -340,7 +348,10 @@ detail
     {
         if constexpr (is_dual <X>)
         {
-            return term_t <typename X::differentials_type, F> { x.differentials, f };
+            return term_t <typename X::differentials_type, F> {
+                  x.differentials
+                , f
+            };
         }
         else
         {
@@ -417,7 +428,9 @@ operator == (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     constexpr bool
 operator == (dual_t <N, T> const& a, U const& b) noexcept
 {
-    return a.value == static_cast <std::common_type_t <detail::floating_point_type_t <T>, U>> (b);
+        using
+    common_t = std::common_type_t <detail::floating_point_type_t <T>, U>;
+    return a.value == static_cast <common_t> (b);
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
@@ -430,7 +443,9 @@ operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     constexpr auto
 operator <=> (dual_t <N, T> const& a, U const& b) noexcept
 {
-    return a.value <=> static_cast <std::common_type_t <detail::floating_point_type_t <T>, U>> (b);
+        using
+    common_t = std::common_type_t <detail::floating_point_type_t <T>, U>;
+    return a.value <=> static_cast <common_t> (b);
 }
 
     template <std::size_t N, class T>
@@ -443,7 +458,13 @@ operator + (dual_t <N, T> a) noexcept
     constexpr auto
 operator - (dual_t <N, T> const& a) noexcept
 {
-    return dual_t { -a.value, detail::elementwise ([] (auto const& d) { return -d; }, a.differentials) };
+    return dual_t {
+          -a.value
+        , detail::elementwise (
+              [] (auto const& d) { return -d; }
+            , a.differentials
+          )
+    };
 }
 
 // Arithmetic with a dual of another type, or with a number, gives a dual of
@@ -458,7 +479,10 @@ operator + (dual_t <N, T> const& a, U const& b) noexcept
     result_t = decltype (a.value + b);
         const auto
     x = dual_cast <result_t> (a);
-    return dual_t { x.value + static_cast <detail::floating_point_type_t <result_t>> (b), x.differentials };
+    return dual_t {
+          x.value + static_cast <detail::floating_point_type_t <result_t>> (b)
+        , x.differentials
+    };
 }
     template <std::size_t N, class T, detail::arithmetic U>
     constexpr auto
@@ -468,7 +492,10 @@ operator + (U const& a, dual_t <N, T> const& b) noexcept
     result_t = decltype (a + b.value);
         const auto
     y = dual_cast <result_t> (b);
-    return dual_t { static_cast <detail::floating_point_type_t <result_t>> (a) + y.value, y.differentials };
+    return dual_t {
+          static_cast <detail::floating_point_type_t <result_t>> (a) + y.value
+        , y.differentials
+    };
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
@@ -483,7 +510,11 @@ operator + (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           x.value + y.value
-        , detail::elementwise ([] (auto const& d, auto const& e) { return d + e; }, x.differentials, y.differentials)
+        , detail::elementwise (
+              [] (auto const& d, auto const& e) { return d + e; }
+            , x.differentials
+            , y.differentials
+          )
     };
 }
 
@@ -495,7 +526,10 @@ operator - (dual_t <N, T> const& a, U const& b) noexcept
     result_t = decltype (a.value - b);
         const auto
     x = dual_cast <result_t> (a);
-    return dual_t { x.value - static_cast <detail::floating_point_type_t <result_t>> (b), x.differentials };
+    return dual_t {
+          x.value - static_cast <detail::floating_point_type_t <result_t>> (b)
+        , x.differentials
+    };
 }
     template <std::size_t N, class T, detail::arithmetic U>
     constexpr auto
@@ -507,7 +541,10 @@ operator - (U const& a, dual_t <N, T> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t {
           static_cast <detail::floating_point_type_t <result_t>> (a) - y.value
-        , detail::elementwise ([] (auto const& d) { return -d; }, y.differentials)
+        , detail::elementwise (
+              [] (auto const& d) { return -d; }
+            , y.differentials
+          )
     };
 }
     template <std::size_t N, class T, class U>
@@ -523,7 +560,11 @@ operator - (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           x.value - y.value
-        , detail::elementwise ([] (auto const& d, auto const& e) { return d - e; }, x.differentials, y.differentials)
+        , detail::elementwise (
+              [] (auto const& d, auto const& e) { return d - e; }
+            , x.differentials
+            , y.differentials
+          )
     };
 }
 
@@ -537,7 +578,13 @@ operator * (dual_t <N, T> const& a, U const& b) noexcept
     x = dual_cast <result_t> (a);
         const auto
     s = static_cast <detail::floating_point_type_t <result_t>> (b);
-    return dual_t { x.value * s, detail::elementwise ([&] (auto const& d) { return d * s; }, x.differentials) };
+    return dual_t {
+          x.value * s
+        , detail::elementwise (
+              [&] (auto const& d) { return d * s; }
+            , x.differentials
+          )
+    };
 }
     template <std::size_t N, class T, detail::arithmetic U>
     constexpr auto
@@ -549,7 +596,13 @@ operator * (U const& a, dual_t <N, T> const& b) noexcept
     s = static_cast <detail::floating_point_type_t <result_t>> (a);
         const auto
     y = dual_cast <result_t> (b);
-    return dual_t { s * y.value, detail::elementwise ([&] (auto const& d) { return d * s; }, y.differentials) };
+    return dual_t {
+          s * y.value
+        , detail::elementwise (
+              [&] (auto const& d) { return d * s; }
+            , y.differentials
+          )
+    };
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
@@ -565,7 +618,10 @@ operator * (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     return dual_t { 
           x.value * y.value
         , detail::elementwise (
-              [&] (auto const& d, auto const& e) { return d * y.value + e * x.value; }
+              [&] (auto const& d, auto const& e)
+              {
+                  return d * y.value + e * x.value;
+              }
             , x.differentials
             , y.differentials
           )
@@ -584,7 +640,10 @@ operator / (dual_t <N, T> const& a, U const& b) noexcept
     s = static_cast <detail::floating_point_type_t <result_t>> (b);
     return dual_t { 
           x.value / s
-        , detail::elementwise ([&] (auto const& d) { return d / s; }, x.differentials)
+        , detail::elementwise (
+              [&] (auto const& d) { return d / s; }
+            , x.differentials
+          )
     };
 }
     template <std::size_t N, class T, detail::arithmetic U>
@@ -599,7 +658,10 @@ operator / (U const& a, dual_t <N, T> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           s / y.value
-        , detail::elementwise ([&] (auto const& d) { return -d * s / y.value / y.value; }, y.differentials)
+        , detail::elementwise (
+              [&] (auto const& d) { return -d * s / y.value / y.value; }
+            , y.differentials
+          )
     };
 }
     template <std::size_t N, class T, class U>
@@ -616,7 +678,10 @@ operator / (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     return dual_t { 
           x.value / y.value
         , detail::elementwise (
-              [&] (auto const& d, auto const& e) { return (d * y.value - e * x.value) / y.value / y.value; }
+              [&] (auto const& d, auto const& e)
+              {
+                  return (d * y.value - e * x.value) / y.value / y.value;
+              }
             , x.differentials
             , y.differentials
           )
@@ -628,7 +693,10 @@ operator / (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 // the type of a. Without the warning about the conversion, which would be in
 // this header rather than in the code using it.
     template <std::size_t N, class T, class U>
-    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a + b); }
+    requires requires (dual_t <N, T> const& a, U const& b)
+    {
+        dual_cast <T> (a + b);
+    }
     constexpr dual_t <N, T>&
 operator += (dual_t <N, T>& a, U const& b) noexcept
 {
@@ -636,7 +704,10 @@ operator += (dual_t <N, T>& a, U const& b) noexcept
     return a;
 }
     template <std::size_t N, class T, class U>
-    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a - b); }
+    requires requires (dual_t <N, T> const& a, U const& b)
+    {
+        dual_cast <T> (a - b);
+    }
     constexpr dual_t <N, T>&
 operator -= (dual_t <N, T>& a, U const& b) noexcept
 {
@@ -644,7 +715,10 @@ operator -= (dual_t <N, T>& a, U const& b) noexcept
     return a;
 }
     template <std::size_t N, class T, class U>
-    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a * b); }
+    requires requires (dual_t <N, T> const& a, U const& b)
+    {
+        dual_cast <T> (a * b);
+    }
     constexpr dual_t <N, T>&
 operator *= (dual_t <N, T>& a, U const& b) noexcept
 {
@@ -652,7 +726,10 @@ operator *= (dual_t <N, T>& a, U const& b) noexcept
     return a;
 }
     template <std::size_t N, class T, class U>
-    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a / b); }
+    requires requires (dual_t <N, T> const& a, U const& b)
+    {
+        dual_cast <T> (a / b);
+    }
     constexpr dual_t <N, T>&
 operator /= (dual_t <N, T>& a, U const& b) noexcept
 {
@@ -670,7 +747,10 @@ acos (dual_t <N, T> const& a) noexcept
     root = sqrt ((1 - a.value) * (1 + a.value));
     return dual_t {
           acos (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return -d / root; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return -d / root; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -683,7 +763,10 @@ asin (dual_t <N, T> const& a) noexcept
     root = sqrt ((1 - a.value) * (1 + a.value));
     return dual_t {
           asin (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / root; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / root; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -695,7 +778,10 @@ atan (dual_t <N, T> const& a) noexcept
     denominator = 1 + a.value * a.value;
     return dual_t {
           atan (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / denominator; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / denominator; }
+          )
     };
 }
     template <class A, class B>
@@ -721,8 +807,14 @@ atan2 (A const& a, B const& b) noexcept
     return dual_t <n, result_t> {
           atan2 (y_value, x_value)
         , detail::combine_terms <result_t, n> (
-              detail::term (x, [&] (auto const& d) { return -d * y_value / tmp; })
-            , detail::term (y, [&] (auto const& d) { return d * x_value / tmp; })
+              detail::term (
+                    x
+                  , [&] (auto const& d) { return -d * y_value / tmp; }
+              )
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return d * x_value / tmp; }
+              )
           )
     };
 }
@@ -735,7 +827,10 @@ cos (dual_t <N, T> const& a) noexcept
     sine = sin (a.value);
     return dual_t {
           cos (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return -d * sine; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return -d * sine; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -747,7 +842,10 @@ sin (dual_t <N, T> const& a) noexcept
     cosine = cos (a.value);
     return dual_t {
           sin (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * cosine; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * cosine; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -761,7 +859,10 @@ tan (dual_t <N, T> const& a) noexcept
     factor = 1 + tmp * tmp;
     return dual_t {
           tmp
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * factor; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * factor; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -774,7 +875,10 @@ acosh (dual_t <N, T> const& a) noexcept
     root = sqrt ((a.value - 1) * (a.value + 1));
     return dual_t {
           acosh (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / root; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / root; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -786,7 +890,10 @@ asinh (dual_t <N, T> const& a) noexcept
     root = sqrt (1 + a.value * a.value);
     return dual_t {
           asinh (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / root; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / root; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -799,7 +906,10 @@ atanh (dual_t <N, T> const& a) noexcept
     denominator = (1 - a.value) * (1 + a.value);
     return dual_t {
           atanh (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / denominator; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / denominator; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -811,7 +921,10 @@ cosh (dual_t <N, T> const& a) noexcept
     hyperbolic_sine = sinh (a.value);
     return dual_t {
           cosh (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * hyperbolic_sine; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * hyperbolic_sine; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -823,7 +936,10 @@ sinh (dual_t <N, T> const& a) noexcept
     hyperbolic_cosine = cosh (a.value);
     return dual_t {
           sinh (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * hyperbolic_cosine; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * hyperbolic_cosine; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -837,7 +953,10 @@ tanh (dual_t <N, T> const& a) noexcept
     tmp = 1 / cosh (a.value);
     return dual_t {
           tanh (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * tmp * tmp; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * tmp * tmp; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -849,7 +968,10 @@ exp (dual_t <N, T> const& a) noexcept
     tmp = exp (a.value);
     return dual_t {
           tmp
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * tmp; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * tmp; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -863,7 +985,10 @@ exp2 (dual_t <N, T> const& a) noexcept
     ln2 = std::numbers::ln2_v <detail::floating_point_type_t <T>>;
     return dual_t {
           tmp
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * tmp * ln2; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * tmp * ln2; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -875,7 +1000,10 @@ expm1 (dual_t <N, T> const& a) noexcept
     exponential = exp (a.value);
     return dual_t {
           expm1 (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * exponential; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * exponential; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -885,7 +1013,10 @@ log (dual_t <N, T> const& a) noexcept
         using std::log;
     return dual_t {
           log (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / a.value; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / a.value; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -897,7 +1028,10 @@ log10 (dual_t <N, T> const& a) noexcept
     ln10 = std::numbers::ln10_v <detail::floating_point_type_t <T>>;
     return dual_t {
           log10 (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / a.value / ln10; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / a.value / ln10; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -909,7 +1043,10 @@ log1p (dual_t <N, T> const& a) noexcept
     denominator = a.value + 1;
     return dual_t {
           log1p (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / denominator; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / denominator; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -921,7 +1058,10 @@ log2 (dual_t <N, T> const& a) noexcept
     ln2 = std::numbers::ln2_v <detail::floating_point_type_t <T>>;
     return dual_t {
           log2 (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / a.value / ln2; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / a.value / ln2; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -935,7 +1075,10 @@ cbrt (dual_t <N, T> const& a) noexcept
     denominator = 3 * tmp * tmp;
     return dual_t {
           tmp
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / denominator; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / denominator; }
+          )
     };
 }
 // abs and fabs have no derivative at 0: it is taken as that of the sign of
@@ -948,10 +1091,16 @@ abs (dual_t <N, T> const& a) noexcept
 {
         using std::abs, std::copysign;
         const auto
-    sign = copysign (detail::floating_point_type_t <T> { 1 }, detail::floating_point_value (a.value));
+    sign = copysign (
+          detail::floating_point_type_t <T> { 1 }
+        , detail::floating_point_value (a.value)
+    );
     return dual_t {
           abs (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * sign; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * sign; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -960,10 +1109,16 @@ fabs (dual_t <N, T> const& a) noexcept
 {
         using std::fabs, std::copysign;
         const auto
-    sign = copysign (detail::floating_point_type_t <T> { 1 }, detail::floating_point_value (a.value));
+    sign = copysign (
+          detail::floating_point_type_t <T> { 1 }
+        , detail::floating_point_value (a.value)
+    );
     return dual_t {
           fabs (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * sign; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * sign; }
+          )
     };
 }
     template <class A, class B>
@@ -989,8 +1144,14 @@ hypot (A const& a, B const& b) noexcept
     return dual_t <n, result_t> {
           tmp
         , detail::combine_terms <result_t, n> (
-              detail::term (x, [&] (auto const& d) { return d * x_value / tmp; })
-            , detail::term (y, [&] (auto const& d) { return d * y_value / tmp; })
+              detail::term (
+                    x
+                  , [&] (auto const& d) { return d * x_value / tmp; }
+              )
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return d * y_value / tmp; }
+              )
           )
     };
 }
@@ -1001,7 +1162,9 @@ hypot (A const& a, B const& b, C const& c) noexcept
 {
         using std::hypot;
         using
-    result_t = decltype (hypot (detail::value_of (a), detail::value_of (b), detail::value_of (c)));
+    result_t = decltype (
+        hypot (detail::value_of (a), detail::value_of (b), detail::value_of (c))
+    );
         constexpr auto
     n = detail::common_differentials_count <A, B, C>;
         const auto
@@ -1021,9 +1184,18 @@ hypot (A const& a, B const& b, C const& c) noexcept
     return dual_t <n, result_t> {
           tmp
         , detail::combine_terms <result_t, n> (
-              detail::term (x, [&] (auto const& d) { return d * x_value / tmp; })
-            , detail::term (y, [&] (auto const& d) { return d * y_value / tmp; })
-            , detail::term (z, [&] (auto const& d) { return d * z_value / tmp; })
+              detail::term (
+                    x
+                  , [&] (auto const& d) { return d * x_value / tmp; }
+              )
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return d * y_value / tmp; }
+              )
+            , detail::term (
+                  z
+                , [&] (auto const& d) { return d * z_value / tmp; }
+              )
           )
     };
 }
@@ -1132,7 +1304,10 @@ sqrt (dual_t <N, T> const& a) noexcept
     denominator = 2 * tmp;
     return dual_t {
           tmp
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / denominator; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d / denominator; }
+          )
     };
 }
 
@@ -1155,7 +1330,10 @@ detail
             e = exp_minus_square (x.value);
             return T {
                   e
-                , transform_differentials (x.differentials, [&] (auto const& d) { return -2 * x.value * e * d; })
+                , transform_differentials (
+                      x.differentials
+                    , [&] (auto const& d) { return -2 * x.value * e * d; }
+                  )
             };
         }
         else
@@ -1176,10 +1354,14 @@ erf (dual_t <N, T> const& a) noexcept
 {
         using std::erf;
         const auto
-    factor = 2 * std::numbers::inv_sqrtpi_v <detail::floating_point_type_t <T>> * detail::exp_minus_square (a.value);
+    factor = 2 * std::numbers::inv_sqrtpi_v <detail::floating_point_type_t <T>>
+        * detail::exp_minus_square (a.value);
     return dual_t {
           erf (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * factor; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return d * factor; }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -1188,10 +1370,14 @@ erfc (dual_t <N, T> const& a) noexcept
 {
         using std::erfc;
         const auto
-    factor = 2 * std::numbers::inv_sqrtpi_v <detail::floating_point_type_t <T>> * detail::exp_minus_square (a.value);
+    factor = 2 * std::numbers::inv_sqrtpi_v <detail::floating_point_type_t <T>>
+        * detail::exp_minus_square (a.value);
     return dual_t {
           erfc (a.value)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return -d * factor; })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return -d * factor; }
+          )
     };
 }
 
@@ -1207,7 +1393,10 @@ frexp (dual_t <N, T> const& a, int* exponent) noexcept
     e = *exponent;
     return dual_t {
           mantissa
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return ldexp (d, -e); })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return ldexp (d, -e); }
+          )
     };
 }
 // x 2^n, whose derivative is 2^n: computed exactly, as the value.
@@ -1218,7 +1407,10 @@ ldexp (dual_t <N, T> const& a, int exponent) noexcept
         using std::ldexp;
     return dual_t {
           ldexp (a.value, exponent)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return ldexp (d, exponent); })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return ldexp (d, exponent); }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -1228,7 +1420,10 @@ scalbn (dual_t <N, T> const& a, int exponent) noexcept
         using std::scalbn;
     return dual_t {
           scalbn (a.value, exponent)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return scalbn (d, exponent); })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return scalbn (d, exponent); }
+          )
     };
 }
     template <std::size_t N, class T>
@@ -1238,7 +1433,10 @@ scalbln (dual_t <N, T> const& a, long exponent) noexcept
         using std::scalbln;
     return dual_t {
           scalbln (a.value, exponent)
-        , detail::transform_differentials (a.differentials, [&] (auto const& d) { return scalbln (d, exponent); })
+        , detail::transform_differentials (
+              a.differentials
+            , [&] (auto const& d) { return scalbln (d, exponent); }
+          )
     };
 }
 // The fractional part, whose derivative is 1, with the integral part, a
@@ -1267,6 +1465,8 @@ fmod (A const& a, B const& b) noexcept
         using std::fmod;
         using
     result_t = decltype (fmod (detail::value_of (a), detail::value_of (b)));
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         const auto
     x = detail::convert <result_t> (a);
         const auto
@@ -1274,12 +1474,15 @@ fmod (A const& a, B const& b) noexcept
         const auto
     r = fmod (detail::value_of (x), detail::value_of (y));
         const auto
-    n = detail::quotient (x, y, r);
-    return dual_t <detail::common_differentials_count <A, B>, result_t> {
+    integer_quotient = detail::quotient (x, y, r);
+    return dual_t <n, result_t> {
           r
-        , detail::combine_terms <result_t, detail::common_differentials_count <A, B>> (
+        , detail::combine_terms <result_t, n> (
               detail::term (x, [] (auto const& d) { return d; })
-            , detail::term (y, [&] (auto const& d) { return -d * n; })
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return -d * integer_quotient; }
+              )
           )
     };
 }
@@ -1290,7 +1493,11 @@ remainder (A const& a, B const& b) noexcept
 {
         using std::remainder;
         using
-    result_t = decltype (remainder (detail::value_of (a), detail::value_of (b)));
+    result_t = decltype (
+        remainder (detail::value_of (a), detail::value_of (b))
+    );
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         const auto
     x = detail::convert <result_t> (a);
         const auto
@@ -1298,12 +1505,15 @@ remainder (A const& a, B const& b) noexcept
         const auto
     r = remainder (detail::value_of (x), detail::value_of (y));
         const auto
-    n = detail::quotient (x, y, r);
-    return dual_t <detail::common_differentials_count <A, B>, result_t> {
+    integer_quotient = detail::quotient (x, y, r);
+    return dual_t <n, result_t> {
           r
-        , detail::combine_terms <result_t, detail::common_differentials_count <A, B>> (
+        , detail::combine_terms <result_t, n> (
               detail::term (x, [] (auto const& d) { return d; })
-            , detail::term (y, [&] (auto const& d) { return -d * n; })
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return -d * integer_quotient; }
+              )
           )
     };
 }
@@ -1314,7 +1524,11 @@ remquo (A const& a, B const& b, int* quotient) noexcept
 {
         using std::remquo;
         using
-    result_t = decltype (remquo (detail::value_of (a), detail::value_of (b), quotient));
+    result_t = decltype (
+        remquo (detail::value_of (a), detail::value_of (b), quotient)
+    );
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         const auto
     x = detail::convert <result_t> (a);
         const auto
@@ -1322,12 +1536,15 @@ remquo (A const& a, B const& b, int* quotient) noexcept
         const auto
     r = remquo (detail::value_of (x), detail::value_of (y), quotient);
         const auto
-    n = detail::quotient (x, y, r);
-    return dual_t <detail::common_differentials_count <A, B>, result_t> {
+    integer_quotient = detail::quotient (x, y, r);
+    return dual_t <n, result_t> {
           r
-        , detail::combine_terms <result_t, detail::common_differentials_count <A, B>> (
+        , detail::combine_terms <result_t, n> (
               detail::term (x, [] (auto const& d) { return d; })
-            , detail::term (y, [&] (auto const& d) { return -d * n; })
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return -d * integer_quotient; }
+              )
           )
     };
 }
@@ -1342,6 +1559,8 @@ copysign (A const& a, B const& b) noexcept
         using std::copysign;
         using
     result_t = decltype (copysign (detail::value_of (a), detail::value_of (b)));
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         using
     floating_point_t = detail::floating_point_type_t <result_t>;
         const auto
@@ -1349,11 +1568,15 @@ copysign (A const& a, B const& b) noexcept
         const auto
     y = detail::convert <result_t> (b);
         const auto
-    sign = copysign (floating_point_t { 1 }, detail::floating_point_value (detail::value_of (x)))
-         * copysign (floating_point_t { 1 }, detail::floating_point_value (detail::value_of (y)));
-    return dual_t <detail::common_differentials_count <A, B>, result_t> {
+    x_value = detail::floating_point_value (detail::value_of (x));
+        const auto
+    y_value = detail::floating_point_value (detail::value_of (y));
+        const auto
+    sign = copysign (floating_point_t { 1 }, x_value)
+         * copysign (floating_point_t { 1 }, y_value);
+    return dual_t <n, result_t> {
           copysign (detail::value_of (x), detail::value_of (y))
-        , detail::combine_terms <result_t, detail::common_differentials_count <A, B>> (
+        , detail::combine_terms <result_t, n> (
               detail::term (x, [&] (auto const& d) { return d * sign; })
           )
     };
@@ -1377,7 +1600,9 @@ fdim (A const& a, B const& b) noexcept
         const auto
     y = detail::convert <result_t> (b);
         auto
-    r = dual_t <n, result_t> { fdim (detail::value_of (x), detail::value_of (y)) };
+    r = dual_t <n, result_t> {
+        fdim (detail::value_of (x), detail::value_of (y))
+    };
     if (detail::value_of (x) > detail::value_of (y))
     {
         r.differentials = detail::combine_terms <result_t, n> (
@@ -1412,15 +1637,20 @@ detail
             const auto
         y_value = floating_point_value (value_of (y));
             const auto
-        first = isnan (y_value)
-            or (not isnan (x_value) and (Maximum ? x_value >= y_value : x_value <= y_value));
+        x_selected = Maximum ? x_value >= y_value : x_value <= y_value;
+            const auto
+        first = isnan (y_value) or (not isnan (x_value) and x_selected);
             auto
         r = dual_t <n, result_t> {
-            Maximum ? fmax (value_of (x), value_of (y)) : fmin (value_of (x), value_of (y))
+            Maximum
+                ? fmax (value_of (x), value_of (y))
+                : fmin (value_of (x), value_of (y))
         };
+            const auto
+        identity = [] (auto const& d) { return d; };
         r.differentials = first
-            ? combine_terms <result_t, n> (term (x, [] (auto const& d) { return d; }))
-            : combine_terms <result_t, n> (term (y, [] (auto const& d) { return d; }));
+            ? combine_terms <result_t, n> (term (x, identity))
+            : combine_terms <result_t, n> (term (y, identity));
         return r;
     }
 } // namespace detail
@@ -1449,18 +1679,28 @@ fma (A const& a, B const& b, C const& c) noexcept
 {
         using std::fma;
         using
-    result_t = decltype (fma (detail::value_of (a), detail::value_of (b), detail::value_of (c)));
+    result_t = decltype (
+        fma (detail::value_of (a), detail::value_of (b), detail::value_of (c))
+    );
+        constexpr auto
+    n = detail::common_differentials_count <A, B, C>;
         const auto
     x = detail::convert <result_t> (a);
         const auto
     y = detail::convert <result_t> (b);
         const auto
     z = detail::convert <result_t> (c);
-    return dual_t <detail::common_differentials_count <A, B, C>, result_t> {
+    return dual_t <n, result_t> {
           fma (detail::value_of (x), detail::value_of (y), detail::value_of (z))
-        , detail::combine_terms <result_t, detail::common_differentials_count <A, B, C>> (
-              detail::term (x, [&] (auto const& d) { return d * detail::value_of (y); })
-            , detail::term (y, [&] (auto const& d) { return d * detail::value_of (x); })
+        , detail::combine_terms <result_t, n> (
+              detail::term (
+                    x
+                  , [&] (auto const& d) { return d * detail::value_of (y); }
+              )
+            , detail::term (
+                  y
+                , [&] (auto const& d) { return d * detail::value_of (x); }
+              )
             , detail::term (z, [] (auto const& d) { return d; })
           )
     };
@@ -1475,7 +1715,11 @@ lerp (A const& a, B const& b, C const& c) noexcept
 {
         using std::lerp;
         using
-    result_t = decltype (lerp (detail::value_of (a), detail::value_of (b), detail::value_of (c)));
+    result_t = decltype (
+        lerp (detail::value_of (a), detail::value_of (b), detail::value_of (c))
+    );
+        constexpr auto
+    n = detail::common_differentials_count <A, B, C>;
         const auto
     x = detail::convert <result_t> (a);
         const auto
@@ -1484,12 +1728,20 @@ lerp (A const& a, B const& b, C const& c) noexcept
     t = detail::convert <result_t> (c);
         const auto
     t_value = detail::value_of (t);
-    return dual_t <detail::common_differentials_count <A, B, C>, result_t> {
+        const auto
+    difference = detail::value_of (y) - detail::value_of (x);
+    return dual_t <n, result_t> {
           lerp (detail::value_of (x), detail::value_of (y), t_value)
-        , detail::combine_terms <result_t, detail::common_differentials_count <A, B, C>> (
-              detail::term (x, [&] (auto const& d) { return d * (1 - t_value); })
+        , detail::combine_terms <result_t, n> (
+              detail::term (
+                    x
+                  , [&] (auto const& d) { return d * (1 - t_value); }
+              )
             , detail::term (y, [&] (auto const& d) { return d * t_value; })
-            , detail::term (t, [&] (auto const& d) { return d * (detail::value_of (y) - detail::value_of (x)); })
+            , detail::term (
+                  t
+                , [&] (auto const& d) { return d * difference; }
+              )
           )
     };
 }

@@ -88,9 +88,11 @@ they are much smaller than these terms, e.g. the second derivative of
 
 With libc++ before LLVM 24, the `long double` constants of `std::numbers` are
 only as accurate as a `double`
-([llvm/llvm-project#188079](https://github.com/llvm/llvm-project/issues/188079)),
+([llvm/llvm-project#188079][188079]),
 and so are the `long double` derivatives of `exp2`, `log2`, `log10`, `erf` and
 `erfc`, which use them, where `long double` is more precise than `double`.
+
+[188079]: https://github.com/llvm/llvm-project/issues/188079
 
 ## Dependencies
 - A C++20 compiler.
@@ -139,7 +141,16 @@ a joint laboratory of the University of Orléans (https://www.univ-orleans.fr),
 the french National Center For Scientific Research (https://www.cnrs.fr) and
 the french Geological Survey (https://www.brgm.fr).
 
-[![logo ISTO](https://calcul-isto.cnrs-orleans.fr/logos/isto-156.png)](https://www.isto-orleans.fr) &emsp;
-[![logo CNRS](https://calcul-isto.cnrs-orleans.fr/logos/cnrs-128.png)](https://www.cnrs.fr) &emsp;
-[![logo UO](https://calcul-isto.cnrs-orleans.fr/logos/uo-128.png)](https://www.univ-orleans.fr) &emsp;
-[![logo BRGM](https://calcul-isto.cnrs-orleans.fr/logos/brgm-256.png)](https://www.brgm.fr)
+[![logo ISTO][isto-logo]][isto] &emsp;
+[![logo CNRS][cnrs-logo]][cnrs] &emsp;
+[![logo UO][uo-logo]][uo] &emsp;
+[![logo BRGM][brgm-logo]][brgm]
+
+[isto-logo]: https://calcul-isto.cnrs-orleans.fr/logos/isto-156.png
+[isto]: https://www.isto-orleans.fr
+[cnrs-logo]: https://calcul-isto.cnrs-orleans.fr/logos/cnrs-128.png
+[cnrs]: https://www.cnrs.fr
+[uo-logo]: https://calcul-isto.cnrs-orleans.fr/logos/uo-128.png
+[uo]: https://www.univ-orleans.fr
+[brgm-logo]: https://calcul-isto.cnrs-orleans.fr/logos/brgm-256.png
+[brgm]: https://www.brgm.fr

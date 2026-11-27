@@ -178,11 +178,16 @@ SUBCASE("Unused dimensions")
     
 }
 
-TEST_CASE_TEMPLATE("Derivatives of the arithmetic", Real, float, double, long double)
+TEST_CASE_TEMPLATE("Derivatives of the arithmetic"
+    , Real, float, double, long double)
 {
 SUBCASE("Arithmetic")
 {
-    for (auto const& [x0, y0]: { std::pair { 3., 2. }, { -0.5, 4. }, { 2., -0.25 } })
+    for (auto const& [x0, y0]: {
+          std::pair { 3., 2. }
+        , { -0.5, 4. }
+        , { 2., -0.25 }
+    })
     {
             const auto
         x = opaque <Real> (x0);
@@ -261,9 +266,15 @@ TEST_CASE("Compound assignment")
         using
     inner_t = dual_t <2>;
         const auto
-    nested_x = dual_t <2, inner_t> { inner_t { opaque <double> (1.5), { 1, 0 } }, { inner_t { 1 }, inner_t { 0, { 0.5, 2 } } } };
+    nested_x = dual_t <2, inner_t> {
+          inner_t { opaque <double> (1.5), { 1, 0 } }
+        , { inner_t { 1 }, inner_t { 0, { 0.5, 2 } } }
+    };
         const auto
-    nested_y = dual_t <2, inner_t> { inner_t { opaque <double> (-0.7), { 0, 1 } }, { inner_t { 3, { 1, 0 } }, inner_t { -2 } } };
+    nested_y = dual_t <2, inner_t> {
+          inner_t { opaque <double> (-0.7), { 0, 1 } }
+        , { inner_t { 3, { 1, 0 } }, inner_t { -2 } }
+    };
     SUBCASE("With a dual")
     {
         check_all (x, y);
