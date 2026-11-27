@@ -77,6 +77,8 @@ has_any_operation = requires (A const& a, B const& b) { a + b; }
     or requires (A const& a, B const& b) { b / a; }
     or requires (A a, B const& b) { a += b; }
     or requires (A a, B const& b) { a -= b; }
+    or requires (A a, B const& b) { a *= b; }
+    or requires (A a, B const& b) { a /= b; }
     or requires (A const& a, B const& b) { atan2 (a, b); }
     or requires (A const& a, B const& b) { atan2 (b, a); }
     or requires (A const& a, B const& b) { hypot (a, b); }
@@ -629,6 +631,115 @@ SUBCASE("Compound assignment")
     d -= double_number;
     CHECK(d.value == static_cast <float> (static_cast <float> (dual_float.value + double_number) - double_number));
 }
+}
+
+// Compound assignment exists with the numbers and the duals the arithmetic
+// exists with, returns the dual assigned to, and doesn't exist for a
+// constant.
+    template <class A, class B>
+    concept
+has_all_compound_assignments = requires (A a, B const& b)
+{
+    { a += b } -> std::same_as <A&>;
+    { a -= b } -> std::same_as <A&>;
+    { a *= b } -> std::same_as <A&>;
+    { a /= b } -> std::same_as <A&>;
+};
+static_assert (has_all_compound_assignments <dual_t <2>, dual_t <2>>);
+static_assert (has_all_compound_assignments <dual_t <2, float>, dual_t <2>>);
+static_assert (has_all_compound_assignments <dual_t <2>, int>);
+static_assert (has_all_compound_assignments <dual_t <2, float>, double>);
+static_assert (has_all_compound_assignments <nested_t, nested_t>);
+static_assert (has_all_compound_assignments <nested_t, double>);
+    template <class A, class B>
+    concept
+has_any_compound_assignment = requires (A a, B const& b) { a += b; }
+    or requires (A a, B const& b) { a -= b; }
+    or requires (A a, B const& b) { a *= b; }
+    or requires (A a, B const& b) { a /= b; };
+static_assert (not has_any_compound_assignment <dual_t <2> const, int>);
+static_assert (not has_any_compound_assignment <dual_t <2>, dual_t <1>>);
+static_assert (not has_any_compound_assignment <nested_t, dual_t <2>>);
+static_assert (not has_any_compound_assignment <dual_t <2>, std::complex <double>>);
+
+TEST_CASE("Compound assignment")
+{
+    // a op= b is a op b, converted to the type of a, and returns a.
+        const auto
+    check = [] (auto a, auto const& b, auto operation, auto compound_assignment)
+    {
+            using
+        value_t = typename decltype (a)::value_type;
+            const auto
+        expected = dual_cast <value_t> (operation (a, b));
+            auto&
+        r = compound_assignment (a, b);
+        CHECK(&r == &a);
+        CHECK(identical (a, expected));
+    };
+        const auto
+    check_all = [&] (auto const& a, auto const& b)
+    {
+        check (a, b
+            , [] (auto const& u, auto const& v) { return u + v; }
+            , [] (auto& u, auto const& v) -> auto& { return u += v; }
+        );
+        check (a, b
+            , [] (auto const& u, auto const& v) { return u - v; }
+            , [] (auto& u, auto const& v) -> auto& { return u -= v; }
+        );
+        check (a, b
+            , [] (auto const& u, auto const& v) { return u * v; }
+            , [] (auto& u, auto const& v) -> auto& { return u *= v; }
+        );
+        check (a, b
+            , [] (auto const& u, auto const& v) { return u / v; }
+            , [] (auto& u, auto const& v) -> auto& { return u /= v; }
+        );
+    };
+        const auto
+    x = dual_t <2> { opaque <double> (1.5), { 2, -3 } };
+        const auto
+    y = dual_t <2> { opaque <double> (-0.7), { 0.25, 4 } };
+        const auto
+    x_float = dual_t <2, float> { opaque <float> (0.3), { -1, 0.5 } };
+        using
+    inner_t = dual_t <2>;
+        const auto
+    nested_x = dual_t <2, inner_t> { inner_t { opaque <double> (1.5), { 1, 0 } }, { inner_t { 1 }, inner_t { 0, { 0.5, 2 } } } };
+        const auto
+    nested_y = dual_t <2, inner_t> { inner_t { opaque <double> (-0.7), { 0, 1 } }, { inner_t { 3, { 1, 0 } }, inner_t { -2 } } };
+    SUBCASE("With a dual")
+    {
+        check_all (x, y);
+        check_all (x, x_float);
+    }
+    SUBCASE("With a dual of a wider type: converted to the type of a")
+    {
+        check_all (x_float, x);
+    }
+    SUBCASE("With a number")
+    {
+        check_all (x, opaque <int> (3));
+        check_all (x, opaque <double> (0.75));
+        check_all (x_float, opaque <double> (0.75));
+    }
+    SUBCASE("Nested duals")
+    {
+        check_all (nested_x, nested_y);
+        check_all (nested_x, opaque <double> (0.75));
+    }
+    SUBCASE("With itself")
+    {
+            auto
+        z = independent_variable <1> (opaque <double> (3), 0);
+        z *= z;
+        CHECK(z.value == 9);
+        CHECK(z.differentials[0] == 6);
+        z -= z;
+        CHECK(z.value == 0);
+        CHECK(z.differentials[0] == 0);
+    }
 }
 
 // Arrays of duals combine with duals element-wise, as with numbers.

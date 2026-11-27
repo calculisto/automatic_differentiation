@@ -195,26 +195,6 @@ dual_cast (dual_t <N, T> const& a)
     return r;
 }
 
-    namespace
-detail
-{
-    // x converted to T, a floating-point type or a dual of the same
-    // structure.
-        template <class T, class U>
-        constexpr T
-    convert (U const& x)
-    {
-        if constexpr (std::floating_point <T>)
-        {
-            return static_cast <T> (x);
-        }
-        else
-        {
-            return dual_cast <typename T::value_type> (x);
-        }
-    }
-} // namespace detail
-
 // Comparisons compare the values only, like those of a number, so that code
 // branching on a dual takes the same branch as with its value. The operators
 // with a number on the left are rewritten from these ones. The number is
@@ -300,15 +280,6 @@ operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
         , x.differentials + y.differentials 
     };
 }
-    template <std::size_t N, class T, detail::arithmetic U>
-    auto&
-operator += (dual_t <N, T>& a, U const& b)
-{
-    // What += does for numbers, without the warning about the conversion,
-    // which would be in this header rather than in the code using it.
-    a.value = detail::convert <T> (a.value + b);
-    return a;
-}
 
     template <std::size_t N, class T, detail::arithmetic U>
     auto
@@ -345,15 +316,6 @@ operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
           x.value - y.value
         , x.differentials - y.differentials 
     };
-}
-    template <std::size_t N, class T, detail::arithmetic U>
-    auto&
-operator -= (dual_t <N, T>& a, U const& b)
-{
-    // What -= does for numbers, without the warning about the conversion,
-    // which would be in this header rather than in the code using it.
-    a.value = detail::convert <T> (a.value - b);
-    return a;
 }
 
     template <std::size_t N, class T, detail::arithmetic U>
@@ -445,6 +407,43 @@ operator / (dual_t <N, T> const& a, dual_t <N, U> const& b)
             - y.differentials * x.value
           ) / y.value / y.value 
     };
+}
+
+// Compound assignment, with a number or a dual of the same structure: as for
+// numbers, a op= b is a op b, computed in the type of the result, converted to
+// the type of a. Without the warning about the conversion, which would be in
+// this header rather than in the code using it.
+    template <std::size_t N, class T, class U>
+    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a + b); }
+    dual_t <N, T>&
+operator += (dual_t <N, T>& a, U const& b)
+{
+    a = dual_cast <T> (a + b);
+    return a;
+}
+    template <std::size_t N, class T, class U>
+    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a - b); }
+    dual_t <N, T>&
+operator -= (dual_t <N, T>& a, U const& b)
+{
+    a = dual_cast <T> (a - b);
+    return a;
+}
+    template <std::size_t N, class T, class U>
+    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a * b); }
+    dual_t <N, T>&
+operator *= (dual_t <N, T>& a, U const& b)
+{
+    a = dual_cast <T> (a * b);
+    return a;
+}
+    template <std::size_t N, class T, class U>
+    requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a / b); }
+    dual_t <N, T>&
+operator /= (dual_t <N, T>& a, U const& b)
+{
+    a = dual_cast <T> (a / b);
+    return a;
 }
 
     template <std::size_t N, class T>
@@ -978,7 +977,7 @@ pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
             r.differentials[i] = x.differentials[i] * partial_x;
             if (not detail::is_exactly_zero (y.differentials[i]))
             {
-                r.differentials[i] = r.differentials[i] + y.differentials[i] * partial_y;
+                r.differentials[i] += y.differentials[i] * partial_y;
             }
         }
         else if (not detail::is_exactly_zero (y.differentials[i]))
