@@ -15,7 +15,6 @@
 #include <numbers>
 #include <utility>
 #include <type_traits>
-    using calculisto::array::array_t;
 
 // Tools to check the functions, with Real the floating-point type of the
 // values: the value of the result must be that of the std:: function, and its

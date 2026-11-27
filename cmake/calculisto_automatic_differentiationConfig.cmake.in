@@ -1,8 +1,5 @@
 @PACKAGE_INIT@
 
-include (CMakeFindDependencyMacro)
-find_dependency (calculisto_array 0.1)
-
 include ("${CMAKE_CURRENT_LIST_DIR}/calculisto_automatic_differentiationTargets.cmake")
 
 check_required_components (calculisto_automatic_differentiation)

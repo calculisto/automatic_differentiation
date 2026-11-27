@@ -156,7 +156,38 @@ static_assert (not has_any_compound_assignment <dual_t <2>, dual_t <1>>);
 static_assert (not has_any_compound_assignment <nested_t, dual_t <2>>);
 static_assert (not has_any_compound_assignment <dual_t <2>, std::complex <double>>);
 
-// Arrays of duals combine with duals element-wise, as with numbers.
+// An array type whose operators combine its elements with any type that they
+// combine with: an array of duals times a dual is not ambiguous with the
+// operators of the duals, which combine them with the numbers of the
+// arithmetic types only.
+    template <class T>
+    struct
+generic_array
+{
+        std::array <T, 2>
+    elements;
+};
+#define GENERIC_ARRAY_OPERATOR(op)                                                     \
+    template <class T, class U>                                                        \
+    requires requires (T const& t, U const& u) { t op u; }                             \
+    generic_array <decltype (std::declval <T> () op std::declval <U> ())>              \
+operator op (generic_array <T> const& a, U const& b)                                   \
+{                                                                                      \
+    return { { a.elements[0] op b, a.elements[1] op b } };                             \
+}                                                                                      \
+    template <class T, class U>                                                        \
+    requires requires (T const& t, U const& u) { u op t; }                             \
+    generic_array <decltype (std::declval <U> () op std::declval <T> ())>              \
+operator op (U const& a, generic_array <T> const& b)                                   \
+{                                                                                      \
+    return { { a op b.elements[0], a op b.elements[1] } };                             \
+}
+GENERIC_ARRAY_OPERATOR(+)
+GENERIC_ARRAY_OPERATOR(-)
+GENERIC_ARRAY_OPERATOR(*)
+GENERIC_ARRAY_OPERATOR(/)
+#undef GENERIC_ARRAY_OPERATOR
+
     template <class A, class B, class Result>
     concept
 gives = requires (A const& a, B const& b)
@@ -166,8 +197,8 @@ gives = requires (A const& a, B const& b)
     { a * b } -> std::same_as <Result>;
     { a / b } -> std::same_as <Result>;
 };
-static_assert (gives <array_t <dual_t <1>, 2>, dual_t <1>, array_t <dual_t <1>, 2>>);
-static_assert (gives <dual_t <1>, array_t <dual_t <1>, 2>, array_t <dual_t <1>, 2>>);
+static_assert (gives <generic_array <dual_t <1>>, dual_t <1>, generic_array <dual_t <1>>>);
+static_assert (gives <dual_t <1>, generic_array <dual_t <1>>, generic_array <dual_t <1>>>);
 
 // The arithmetic is constexpr.
     constexpr auto
@@ -244,7 +275,7 @@ SUBCASE("Construction")
 
     // The types of the value and of the differentials.
     static_assert (std::same_as <dual_t <2, float>::value_type, float>);
-    static_assert (std::same_as <dual_t <2, float>::differentials_type, array_t <float, 2>>);
+    static_assert (std::same_as <dual_t <2, float>::differentials_type, std::array <float, 2>>);
 
     // Value-initialization gives zero, like double {}.
         constexpr auto
@@ -268,7 +299,7 @@ SUBCASE("Construction")
 
     // Class template argument deduction.
         constexpr auto
-    d = dual_t { 1.f, array_t <float, 2> { 2.f, 3.f } };
+    d = dual_t { 1.f, std::array <float, 2> { 2.f, 3.f } };
     static_assert (std::same_as <decltype (d), dual_t <2, float> const>);
 
     // An independent variable: its differential with respect to itself is

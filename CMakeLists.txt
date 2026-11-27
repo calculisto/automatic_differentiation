@@ -13,18 +13,6 @@ include (GNUInstallDirs)
 # one (add_subdirectory, FetchContent).
 option (CALCULISTO_AUTOMATIC_DIFFERENTIATION_INSTALL "Generate the installation rules" ${PROJECT_IS_TOP_LEVEL})
 
-# The dependencies: the installed version if it is compatible, otherwise
-# downloaded, and then installed with this project, which needs it.
-set (CALCULISTO_ARRAY_INSTALL ${CALCULISTO_AUTOMATIC_DIFFERENTIATION_INSTALL})
-include (FetchContent)
-FetchContent_Declare (calculisto_array
-    GIT_REPOSITORY https://github.com/calculisto/array.git
-    GIT_TAG        0.1.1
-    GIT_SHALLOW    TRUE
-    FIND_PACKAGE_ARGS 0.1
-)
-FetchContent_MakeAvailable (calculisto_array)
-
 # The library: header-only.
 add_library (calculisto_automatic_differentiation INTERFACE)
 add_library (calculisto::automatic_differentiation ALIAS calculisto_automatic_differentiation)
@@ -35,7 +23,6 @@ target_include_directories (calculisto_automatic_differentiation INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries (calculisto_automatic_differentiation INTERFACE calculisto::array)
 target_compile_features (calculisto_automatic_differentiation INTERFACE cxx_std_20)
 
 if (CALCULISTO_AUTOMATIC_DIFFERENTIATION_INSTALL)

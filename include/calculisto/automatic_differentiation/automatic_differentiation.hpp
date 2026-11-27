@@ -1,5 +1,5 @@
 #pragma once
-#include "calculisto/array/array.hpp"
+#include <array>
 #include <cmath>
 #include <compare>
 #include <concepts>
@@ -10,8 +10,6 @@
     namespace
 calculisto::automatic_differentiation
 {
-    using calculisto::array::array_t;
-
 // The arithmetic (the operators, compound assignment, the comparisons,
 // dual_cast and independent_variable) is constexpr. The functions of <cmath>
 // are not, like those of std in C++20. Everything is noexcept, except
@@ -55,7 +53,7 @@ dual_t
         using
     value_type = T;
         using
-    differentials_type = array_t <T, N>;
+    differentials_type = std::array <T, N>;
 
         value_type
     value;
@@ -64,7 +62,7 @@ dual_t
 };
 
     template <class T, std::size_t N>
-dual_t (T, array_t <T, N>) -> dual_t <N, T>;
+dual_t (T, std::array <T, N>) -> dual_t <N, T>;
 
     namespace
 detail
@@ -147,18 +145,35 @@ detail
         }
     }
 
+    // The differentials computed element-wise: f applied to the elements of
+    // the same index of the differentials given.
+        template <class F, class D, std::size_t N, class... E>
+        constexpr auto
+    elementwise (F f, std::array <D, N> const& differentials, std::array <E, N> const&... others) noexcept
+    {
+            using
+        result_t = decltype (f (differentials[0], others[0]...));
+            auto
+        r = std::array <result_t, N> {};
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            r[i] = f (differentials[i], others[i]...);
+        }
+        return r;
+    }
+
     // The differentials transformed by f, applied to each of them, except
     // the zero ones, which stay zero, even where f would multiply them by an
     // infinite or NaN factor (e.g. that of sqrt at 0): a constant doesn't
     // change a derivative, as in pow.
         template <class D, std::size_t N, class F>
         constexpr auto
-    transform_differentials (array_t <D, N> const& differentials, F f) noexcept
+    transform_differentials (std::array <D, N> const& differentials, F f) noexcept
     {
             using
         result_t = decltype (f (differentials[0]));
             auto
-        r = array_t <result_t, N> {};
+        r = std::array <result_t, N> {};
         for (std::size_t i = 0; i < N; ++i)
         {
             if (not is_exactly_zero (differentials[i]))
@@ -170,8 +185,9 @@ detail
     }
 
     // The numbers a dual combines with: those of the arithmetic types. Not any
-    // type that combines with the value, such as an array, which would make
-    // array_t <dual_t <N>, M> times dual_t <N> ambiguous.
+    // type that combines with the value, such as an array type whose
+    // operators combine its elements with any type, which would make an array
+    // of duals times a dual ambiguous.
         template <class T>
         concept
     arithmetic = std::is_arithmetic_v <T>;
@@ -194,10 +210,9 @@ independent_variable (std::type_identity_t <T> value, std::size_t index)
     return r;
 }
 
-// The dual a with its value and differentials converted to U, like
-// array_cast: dual_t has no converting constructor. U has the structure of T:
-// a floating-point type if T is one, a dual of the same number of
-// differentials if T is one.
+// The dual a with its value and differentials converted to U: dual_t has no
+// converting constructor. U has the structure of T: a floating-point type if
+// T is one, a dual of the same number of differentials if T is one.
     template <dual_value_type U, std::size_t N, class T>
     requires detail::same_structure <T, U>
     constexpr dual_t <N, U>
@@ -339,11 +354,11 @@ detail
     // assigning the first term rather than adding it to zero, which would
     // turn a -0 into +0.
         template <class Result, std::size_t N, class... Term>
-        constexpr array_t <Result, N>
+        constexpr std::array <Result, N>
     combine_terms (Term const&... terms) noexcept
     {
             auto
-        r = array_t <Result, N> {};
+        r = std::array <Result, N> {};
         for (std::size_t i = 0; i < N; ++i)
         {
                 auto
@@ -428,7 +443,7 @@ operator + (dual_t <N, T> a) noexcept
     constexpr auto
 operator - (dual_t <N, T> const& a) noexcept
 {
-    return dual_t { -a.value, -a.differentials };
+    return dual_t { -a.value, detail::elementwise ([] (auto const& d) { return -d; }, a.differentials) };
 }
 
 // Arithmetic with a dual of another type, or with a number, gives a dual of
@@ -468,7 +483,7 @@ operator + (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           x.value + y.value
-        , x.differentials + y.differentials 
+        , detail::elementwise ([] (auto const& d, auto const& e) { return d + e; }, x.differentials, y.differentials)
     };
 }
 
@@ -490,7 +505,10 @@ operator - (U const& a, dual_t <N, T> const& b) noexcept
     result_t = decltype (a - b.value);
         const auto
     y = dual_cast <result_t> (b);
-    return dual_t { static_cast <detail::floating_point_type_t <result_t>> (a) - y.value, -y.differentials };
+    return dual_t {
+          static_cast <detail::floating_point_type_t <result_t>> (a) - y.value
+        , detail::elementwise ([] (auto const& d) { return -d; }, y.differentials)
+    };
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
@@ -505,7 +523,7 @@ operator - (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           x.value - y.value
-        , x.differentials - y.differentials 
+        , detail::elementwise ([] (auto const& d, auto const& e) { return d - e; }, x.differentials, y.differentials)
     };
 }
 
@@ -519,7 +537,7 @@ operator * (dual_t <N, T> const& a, U const& b) noexcept
     x = dual_cast <result_t> (a);
         const auto
     s = static_cast <detail::floating_point_type_t <result_t>> (b);
-    return dual_t { x.value * s, x.differentials * s };
+    return dual_t { x.value * s, detail::elementwise ([&] (auto const& d) { return d * s; }, x.differentials) };
 }
     template <std::size_t N, class T, detail::arithmetic U>
     constexpr auto
@@ -531,7 +549,7 @@ operator * (U const& a, dual_t <N, T> const& b) noexcept
     s = static_cast <detail::floating_point_type_t <result_t>> (a);
         const auto
     y = dual_cast <result_t> (b);
-    return dual_t { s * y.value, y.differentials * s };
+    return dual_t { s * y.value, detail::elementwise ([&] (auto const& d) { return d * s; }, y.differentials) };
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
@@ -546,7 +564,11 @@ operator * (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           x.value * y.value
-        , x.differentials * y.value + y.differentials * x.value 
+        , detail::elementwise (
+              [&] (auto const& d, auto const& e) { return d * y.value + e * x.value; }
+            , x.differentials
+            , y.differentials
+          )
     };
 }
 
@@ -562,7 +584,7 @@ operator / (dual_t <N, T> const& a, U const& b) noexcept
     s = static_cast <detail::floating_point_type_t <result_t>> (b);
     return dual_t { 
           x.value / s
-        , x.differentials / s 
+        , detail::elementwise ([&] (auto const& d) { return d / s; }, x.differentials)
     };
 }
     template <std::size_t N, class T, detail::arithmetic U>
@@ -577,7 +599,7 @@ operator / (U const& a, dual_t <N, T> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           s / y.value
-        , -y.differentials * s / y.value / y.value
+        , detail::elementwise ([&] (auto const& d) { return -d * s / y.value / y.value; }, y.differentials)
     };
 }
     template <std::size_t N, class T, class U>
@@ -593,10 +615,11 @@ operator / (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
     y = dual_cast <result_t> (b);
     return dual_t { 
           x.value / y.value
-        , (
-              x.differentials * y.value 
-            - y.differentials * x.value
-          ) / y.value / y.value 
+        , detail::elementwise (
+              [&] (auto const& d, auto const& e) { return (d * y.value - e * x.value) / y.value / y.value; }
+            , x.differentials
+            , y.differentials
+          )
     };
 }
 
