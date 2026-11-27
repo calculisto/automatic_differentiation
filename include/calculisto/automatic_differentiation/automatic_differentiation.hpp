@@ -1678,135 +1678,185 @@ lerp (A const& a, B const& b, C const& c) noexcept
           )
     };
 }
-} // namespace calculisto::automatic_differentiation
 
-
-// TODO: swap
-
-/*
-namespace std {
-    double acos(double x);
-    double asin(double x);
-    double atan(double x);
-    double atan2(double y, double x);
-    double cos(double x);
-    double sin(double x);
-    double tan(double x);
-    double acosh(double x);
-    double asinh(double x);
-    double atanh(double x);
-    double cosh(double x);
-    double sinh(double x);
-    double tanh(double x);
-    double exp(double x);
-    double exp2(double x);
-    double expm1(double x);
-    double frexp(double value, int* exp);
-    int ilogb(double x);
-    double ldexp(double x, int exp);
-    double log(double x);
-    double log10(double x);
-    double log1p(double x);
-    double log2(double x);
-    double logb(double x);
-    double modf(double value, double* iptr);
-    double scalbn(double x, int n);
-    double scalbln(double x, long int n);
-    double cbrt(double x);
-    // absolute values
-    double abs(double j);
-    double fabs(double x);
-    double hypot(double x, double y);
-    // three-dimensional hypotenuse
-    double hypot(double x, double y, double z);
-    double pow(double x, double y);
-    double sqrt(double x);
-
------8<----
-
-    double erf(double x);
-    double erfc(double x);
-    double lgamma(double x);
-    double tgamma(double x);
-    double ceil(double x);
-    double floor(double x);
-    double nearbyint(double x);
-    double rint(double x);
-    long int lrint(double x);
-    long long int llrint(double x);
-    double round(double x);
-    long int lround(double x);
-    long long int llround(double x);
-    double trunc(double x);
-    double fmod(double x, double y);
-    double remainder(double x, double y);
-    double remquo(double x, double y, int* quo);
-    double copysign(double x, double y);
-    double nan(const char* tagp);
-    double nextafter(double x, double y);
-    double fdim(double x, double y);
-    double fmax(double x, double y);
-    double fmin(double x, double y);
-    double fma(double x, double y, double z);
-    // linear interpolation
-    constexpr double lerp(double a, double b, double t);
-    // classification / comparison functions
-    int fpclassify(double x);
-    bool isfinite(double x);
-    bool isinf(double x);
-    bool isnan(double x);
-    bool isnormal(double x);
-    bool signbit(double x);
-    bool isgreater(double x, double y);
-    bool isgreaterequal(double x, double y);
-    bool isless(double x, double y);
-    bool islessequal(double x, double y);
-    bool islessgreater(double x, double y);
-    bool isunordered(double x, double y);
-    // mathematical special functions
-    // associated Laguerre polynomials
-    double       assoc_laguerre(unsigned n, unsigned m, double x);
-    // associated Legendre functions
-    double       assoc_legendre(unsigned l, unsigned m, double x);
-    // beta function
-    double       beta(double x, double y);
-    // complete elliptic integral of the first kind
-    double       comp_ellint_1(double k);
-    // complete elliptic integral of the second kind
-    double       comp_ellint_2(double k);
-    // complete elliptic integral of the third kind
-    double       comp_ellint_3(double k, double nu);
-    // regular modified cylindrical Bessel functions
-    double       cyl_bessel_i(double nu, double x);
-    // cylindrical Bessel functions of the first kind
-    double       cyl_bessel_j(double nu, double x);
-    // irregular modified cylindrical Bessel functions
-    double       cyl_bessel_k(double nu, double x);
-    // cylindrical Neumann functions;
-    // cylindrical Bessel functions of the second kind
-    double       cyl_neumann(double nu, double x);
-    // incomplete elliptic integral of the first kind
-    double       ellint_1(double k, double phi);
-    // incomplete elliptic integral of the second kind
-    double       ellint_2(double k, double phi);
-    // incomplete elliptic integral of the third kind
-    double       ellint_3(double k, double nu, double phi);
-    // exponential integral
-    double       expint(double x);
-    // Hermite polynomials
-    double       hermite(unsigned n, double x);
-    // Laguerre polynomials
-    double       laguerre(unsigned n, double x);
-    // Legendre polynomials
-    double       legendre(unsigned l, double x);
-    // Riemann zeta function
-    double       riemann_zeta(double x);
-    // spherical Bessel functions of the first kind
-    double       sph_bessel(unsigned n, double x);
-    // spherical associated Legendre functions
-    double       sph_legendre(unsigned l, unsigned m, double theta);
-    // spherical Neumann functions;
-    // spherical Bessel functions of the second kind
-    double       sph_neumann(unsigned n, double x);
+// The functions constant between their jumps: a dual with zero
+// differentials, also at the jumps, so that they compose with the others,
+// or, for those whose result is an integer, the integer.
+    template <std::size_t N, class T>
+    auto
+ilogb (dual_t <N, T> const& a) noexcept
+{
+        using std::ilogb;
+    return ilogb (a.value);
 }
-*/
+    template <std::size_t N, class T>
+    auto
+logb (dual_t <N, T> const& a) noexcept
+{
+        using std::logb;
+    return dual_t <N, T> { logb (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+ceil (dual_t <N, T> const& a) noexcept
+{
+        using std::ceil;
+    return dual_t <N, T> { ceil (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+floor (dual_t <N, T> const& a) noexcept
+{
+        using std::floor;
+    return dual_t <N, T> { floor (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+nearbyint (dual_t <N, T> const& a) noexcept
+{
+        using std::nearbyint;
+    return dual_t <N, T> { nearbyint (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+rint (dual_t <N, T> const& a) noexcept
+{
+        using std::rint;
+    return dual_t <N, T> { rint (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+lrint (dual_t <N, T> const& a) noexcept
+{
+        using std::lrint;
+    return lrint (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+llrint (dual_t <N, T> const& a) noexcept
+{
+        using std::llrint;
+    return llrint (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+round (dual_t <N, T> const& a) noexcept
+{
+        using std::round;
+    return dual_t <N, T> { round (a.value) };
+}
+    template <std::size_t N, class T>
+    auto
+lround (dual_t <N, T> const& a) noexcept
+{
+        using std::lround;
+    return lround (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+llround (dual_t <N, T> const& a) noexcept
+{
+        using std::llround;
+    return llround (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+trunc (dual_t <N, T> const& a) noexcept
+{
+        using std::trunc;
+    return dual_t <N, T> { trunc (a.value) };
+}
+
+// Classification and comparison: of the values, like the comparison
+// operators, whatever the differentials.
+    template <std::size_t N, class T>
+    auto
+fpclassify (dual_t <N, T> const& a) noexcept
+{
+        using std::fpclassify;
+    return fpclassify (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+isfinite (dual_t <N, T> const& a) noexcept
+{
+        using std::isfinite;
+    return isfinite (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+isinf (dual_t <N, T> const& a) noexcept
+{
+        using std::isinf;
+    return isinf (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+isnan (dual_t <N, T> const& a) noexcept
+{
+        using std::isnan;
+    return isnan (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+isnormal (dual_t <N, T> const& a) noexcept
+{
+        using std::isnormal;
+    return isnormal (a.value);
+}
+    template <std::size_t N, class T>
+    auto
+signbit (dual_t <N, T> const& a) noexcept
+{
+        using std::signbit;
+    return signbit (a.value);
+}
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
+    bool
+isgreater (A const& a, B const& b) noexcept
+{
+        using std::isgreater;
+    return isgreater (detail::value_of (a), detail::value_of (b));
+}
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
+    bool
+isgreaterequal (A const& a, B const& b) noexcept
+{
+        using std::isgreaterequal;
+    return isgreaterequal (detail::value_of (a), detail::value_of (b));
+}
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
+    bool
+isless (A const& a, B const& b) noexcept
+{
+        using std::isless;
+    return isless (detail::value_of (a), detail::value_of (b));
+}
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
+    bool
+islessequal (A const& a, B const& b) noexcept
+{
+        using std::islessequal;
+    return islessequal (detail::value_of (a), detail::value_of (b));
+}
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
+    bool
+islessgreater (A const& a, B const& b) noexcept
+{
+        using std::islessgreater;
+    return islessgreater (detail::value_of (a), detail::value_of (b));
+}
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
+    bool
+isunordered (A const& a, B const& b) noexcept
+{
+        using std::isunordered;
+    return isunordered (detail::value_of (a), detail::value_of (b));
+}
+} // namespace calculisto::automatic_differentiation

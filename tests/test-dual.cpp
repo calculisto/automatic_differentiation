@@ -93,7 +93,9 @@ has_any_operation = requires (A const& a, B const& b) { a + b; }
     or requires (A const& a, B const& b) { fmax (b, a); }
     or requires (A const& a, B const& b) { fma (a, b, a); }
     or requires (A const& a, B const& b) { fma (b, b, a); }
-    or requires (A const& a, B const& b) { lerp (a, a, b); };
+    or requires (A const& a, B const& b) { lerp (a, a, b); }
+    or requires (A const& a, B const& b) { isgreater (a, b); }
+    or requires (A const& a, B const& b) { isunordered (b, a); };
 static_assert (not has_any_operation <dual_t <1>, dual_t <2>>);
 static_assert (not has_any_operation <dual_t <1>, std::complex <double>>);
 static_assert (not has_any_operation <dual_t <1>, not_comparable>);
@@ -589,6 +591,13 @@ SUBCASE("Functions of two arguments of <cmath>, after pow")
     check_all_pairs (FUNCTION (fmax));
     check_all_pairs (FUNCTION (fmin));
 }
+SUBCASE("Comparison functions")
+{
+    // Of the values, converted as for the comparison operators.
+    CHECK(isgreater (dual_double, dual_float) == std::isgreater (dual_double.value, dual_float.value));
+    CHECK(isless (dual_float, double_number) == std::isless (dual_float.value, double_number));
+    CHECK(islessequal (int_number, dual_long_double) == std::islessequal (int_number, dual_long_double.value));
+}
 SUBCASE("Functions of three arguments")
 {
         const auto
@@ -835,6 +844,13 @@ all_noexcept = requires (A a, A const& c, B const& b)
     requires noexcept (fmod (c, b)) and noexcept (remainder (b, c)) and noexcept (copysign (c, b));
     requires noexcept (fdim (c, b)) and noexcept (fmax (b, c)) and noexcept (fmin (c, b));
     requires noexcept (fma (c, b, c)) and noexcept (lerp (b, c, b));
+    requires noexcept (ceil (c)) and noexcept (floor (c)) and noexcept (trunc (c)) and noexcept (round (c));
+    requires noexcept (nearbyint (c)) and noexcept (rint (c)) and noexcept (logb (c)) and noexcept (ilogb (c));
+    requires noexcept (lround (c)) and noexcept (llround (c)) and noexcept (lrint (c)) and noexcept (llrint (c));
+    requires noexcept (fpclassify (c)) and noexcept (isfinite (c)) and noexcept (isinf (c));
+    requires noexcept (isnan (c)) and noexcept (isnormal (c)) and noexcept (signbit (c));
+    requires noexcept (isgreater (c, b)) and noexcept (isgreaterequal (b, c)) and noexcept (isless (c, b));
+    requires noexcept (islessequal (c, b)) and noexcept (islessgreater (c, b)) and noexcept (isunordered (b, c));
 };
 static_assert (all_noexcept <dual_t <2>, dual_t <2>>);
 static_assert (all_noexcept <dual_t <2>, int>);
@@ -1559,6 +1575,92 @@ SUBCASE("Functions with an exponent, frexp and modf")
     static_cast <void> (remquo (independent_variable <1, Real> (opaque <Real> (7.9), 0), Real { 2 }, &quotient));
     static_cast <void> (std::remquo (opaque <Real> (7.9), Real { 2 }, &expected_quotient));
     CHECK(quotient == expected_quotient);
+}
+SUBCASE("Functions constant between their jumps")
+{
+    // The value of std::, with zero differentials, or the integer of std::.
+        using
+    nested_real_t = dual_t <2, dual_t <2, Real>>;
+    for (auto const point: { 2.5, -2.5, 1.3, -0.7, 3., 0.5, 1e3 })
+    {
+            const auto
+        x = opaque <Real> (point);
+        INFO ("x = ", x);
+            const auto
+        variable = independent_variable <2, Real> (x, 0);
+            const auto
+        nested = independent_variable <2, dual_t <2, Real>> (independent_variable <2, Real> (x, 0), 1);
+            const auto
+        check = [&] (auto f)
+        {
+                const auto
+            r = f (variable);
+            static_assert (std::same_as <decltype (r), dual_t <2, Real> const>);
+            CHECK(r.value == f (x));
+            CHECK(r.differentials[0] == 0);
+            CHECK(r.differentials[1] == 0);
+                const auto
+            r_nested = f (nested);
+            static_assert (std::same_as <decltype (r_nested), nested_real_t const>);
+            CHECK(identical (r_nested, nested_real_t { { f (x) } }));
+        };
+        check (FUNCTION (logb));
+        check (FUNCTION (ceil));
+        check (FUNCTION (floor));
+        check (FUNCTION (nearbyint));
+        check (FUNCTION (rint));
+        check (FUNCTION (round));
+        check (FUNCTION (trunc));
+            const auto
+        check_integer = [&] (auto f)
+        {
+                const auto
+            r = f (variable);
+            static_assert (std::same_as <decltype (f (variable)), decltype (f (x))>);
+            CHECK(r == f (x));
+            CHECK(f (nested) == f (x));
+        };
+        check_integer (FUNCTION (ilogb));
+        check_integer (FUNCTION (lrint));
+        check_integer (FUNCTION (llrint));
+        check_integer (FUNCTION (lround));
+        check_integer (FUNCTION (llround));
+    }
+}
+SUBCASE("Classification and comparison")
+{
+    // Of the values, whatever the differentials.
+        const auto
+    nan = std::numeric_limits <Real>::quiet_NaN ();
+        const auto
+    inf = std::numeric_limits <Real>::infinity ();
+    for (auto const value: { Real { 1 }, Real { -0. }, nan, inf, -inf, std::numeric_limits <Real>::denorm_min () })
+    {
+        INFO ("value = ", value);
+        for (auto const differential: { Real { 0 }, Real { 1 }, nan, inf })
+        {
+                const auto
+            a = dual_t <2, Real> { opaque <Real> (value), { differential, 0 } };
+            CHECK(fpclassify (a) == std::fpclassify (value));
+            CHECK(isfinite (a) == std::isfinite (value));
+            CHECK(isinf (a) == std::isinf (value));
+            CHECK(isnan (a) == std::isnan (value));
+            CHECK(isnormal (a) == std::isnormal (value));
+            CHECK(signbit (a) == std::signbit (value));
+            CHECK(isnan (dual_t <2, dual_t <2, Real>> { { a } }) == std::isnan (value));
+            for (auto const other: { Real { 1 }, Real { 2 }, nan })
+            {
+                    const auto
+                b = dual_t <2, Real> { opaque <Real> (other), { 0, differential } };
+                CHECK(isgreater (a, b) == std::isgreater (value, other));
+                CHECK(isgreaterequal (a, other) == std::isgreaterequal (value, other));
+                CHECK(isless (value, b) == std::isless (value, other));
+                CHECK(islessequal (a, b) == std::islessequal (value, other));
+                CHECK(islessgreater (a, other) == std::islessgreater (value, other));
+                CHECK(isunordered (value, b) == std::isunordered (value, other));
+            }
+        }
+    }
 }
 SUBCASE("pow at the boundaries of its domain")
 {
