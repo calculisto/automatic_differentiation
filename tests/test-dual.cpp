@@ -86,7 +86,14 @@ has_any_operation = requires (A const& a, B const& b) { a + b; }
     or requires (A const& a, B const& b) { hypot (a, b, a); }
     or requires (A const& a, B const& b) { hypot (b, a, b); }
     or requires (A const& a, B const& b) { pow (a, b); }
-    or requires (A const& a, B const& b) { pow (b, a); };
+    or requires (A const& a, B const& b) { pow (b, a); }
+    or requires (A const& a, B const& b) { fmod (a, b); }
+    or requires (A const& a, B const& b) { fmod (b, a); }
+    or requires (A const& a, B const& b) { copysign (a, b); }
+    or requires (A const& a, B const& b) { fmax (b, a); }
+    or requires (A const& a, B const& b) { fma (a, b, a); }
+    or requires (A const& a, B const& b) { fma (b, b, a); }
+    or requires (A const& a, B const& b) { lerp (a, a, b); };
 static_assert (not has_any_operation <dual_t <1>, dual_t <2>>);
 static_assert (not has_any_operation <dual_t <1>, std::complex <double>>);
 static_assert (not has_any_operation <dual_t <1>, not_comparable>);
@@ -564,8 +571,36 @@ SUBCASE("Functions of two arguments")
     check_all_pairs (FUNCTION (hypot));
     check_all_pairs (FUNCTION (pow));
 }
+SUBCASE("Functions of two arguments of <cmath>, after pow")
+{
+        const auto
+    remquo_value = [] (auto const&... arguments)
+    {
+            using std::remquo;
+            int
+        quotient;
+        return remquo (arguments..., &quotient);
+    };
+    check_all_pairs (FUNCTION (fmod));
+    check_all_pairs (FUNCTION (remainder));
+    check_all_pairs (remquo_value);
+    check_all_pairs (FUNCTION (copysign));
+    check_all_pairs (FUNCTION (fdim));
+    check_all_pairs (FUNCTION (fmax));
+    check_all_pairs (FUNCTION (fmin));
+}
 SUBCASE("Functions of three arguments")
 {
+        const auto
+    check_combinations = [&] (auto f)
+    {
+        check_mixed (f, dual_float, dual_double, dual_long_double);
+        check_mixed (f, dual_float, double_number, int_number);
+        check_mixed (f, int_number, dual_float, dual_double);
+        check_mixed (f, float_number, double_number, dual_long_double);
+    };
+    check_combinations (FUNCTION (fma));
+    check_combinations (FUNCTION (lerp));
     check_mixed (FUNCTION (hypot), dual_float, dual_double, dual_long_double);
     check_mixed (FUNCTION (hypot), dual_float, dual_double, float_number);
     check_mixed (FUNCTION (hypot), dual_float, int_number, dual_double);
@@ -610,6 +645,11 @@ SUBCASE("Nested duals")
     check_mixed (FUNCTION (pow), nested_float, nested_double);
     check_mixed (FUNCTION (pow), nested_float, int_number);
     check_mixed (FUNCTION (pow), double_number, nested_float);
+    check_mixed (FUNCTION (fmod), nested_float, nested_double);
+    check_mixed (FUNCTION (copysign), double_number, nested_float);
+    check_mixed (FUNCTION (fmax), nested_float, int_number);
+    check_mixed (FUNCTION (fma), nested_float, double_number, nested_double);
+    check_mixed (FUNCTION (lerp), int_number, nested_double, nested_float);
 }
 SUBCASE("A dual of float and an int")
 {
@@ -791,6 +831,10 @@ all_noexcept = requires (A a, A const& c, B const& b)
     requires noexcept (log (c)) and noexcept (log10 (c)) and noexcept (log1p (c)) and noexcept (log2 (c));
     requires noexcept (cbrt (c)) and noexcept (abs (c)) and noexcept (fabs (c)) and noexcept (sqrt (c));
     requires noexcept (dual_cast <float> (c));
+    requires noexcept (erf (c)) and noexcept (erfc (c));
+    requires noexcept (fmod (c, b)) and noexcept (remainder (b, c)) and noexcept (copysign (c, b));
+    requires noexcept (fdim (c, b)) and noexcept (fmax (b, c)) and noexcept (fmin (c, b));
+    requires noexcept (fma (c, b, c)) and noexcept (lerp (b, c, b));
 };
 static_assert (all_noexcept <dual_t <2>, dual_t <2>>);
 static_assert (all_noexcept <dual_t <2>, int>);
@@ -1055,10 +1099,15 @@ SUBCASE("Functions of one argument")
     {
         return Real {};
     };
+    // The constants of std::numbers, which the functions use: with libc++
+    // before LLVM 24, those of long double are only as accurate as a double
+    // (llvm/llvm-project#188079), and the derivatives with them.
         const auto
     ln2 = std::numbers::ln2_v <Real>;
         const auto
     ln10 = std::numbers::ln10_v <Real>;
+        const auto
+    inv_sqrtpi = std::numbers::inv_sqrtpi_v <Real>;
     SUBCASE("acos")
     {
         check_unary_function <Real> (FUNCTION (acos)
@@ -1209,6 +1258,42 @@ SUBCASE("Functions of one argument")
         check_unary_function <Real> (FUNCTION (fabs), sign, zero
             , { -2, -0.5, 0.5, 2 });
     }
+    SUBCASE("erf")
+    {
+        check_unary_function <Real> (FUNCTION (erf)
+            , [&] (Real x) { return 2 * inv_sqrtpi * std::exp (-x * x); }
+            , [&] (Real x) { return -4 * x * inv_sqrtpi * std::exp (-x * x); }
+            , { -2, -0.5, 0.1, 0.5, 2 });
+    }
+    SUBCASE("erf and erfc at large |x|")
+    {
+        // exp (-x^2) amplifies the rounding of x^2 by x^2: with a float, the
+        // reference is computed in double, where x^2 is exact.
+        if constexpr (std::same_as <Real, float>)
+        {
+            for (auto const point: { -5.87, -4.85, 3.3, 5.5 })
+            {
+                    const auto
+                x = opaque <float> (point);
+                INFO ("x = ", x);
+                    const auto
+                expected = static_cast <float> (
+                    2 * std::numbers::inv_sqrtpi * std::exp (-static_cast <double> (x) * x)
+                );
+                    const auto
+                variable = independent_variable <1, float> (x, 0);
+                CHECK(within_ulps <float> (erf (variable).differentials[0], expected, ulps));
+                CHECK(within_ulps <float> (erfc (variable).differentials[0], -expected, ulps));
+            }
+        }
+    }
+    SUBCASE("erfc")
+    {
+        check_unary_function <Real> (FUNCTION (erfc)
+            , [&] (Real x) { return -2 * inv_sqrtpi * std::exp (-x * x); }
+            , [&] (Real x) { return 4 * x * inv_sqrtpi * std::exp (-x * x); }
+            , { -2, -0.5, 0.1, 0.5, 2 });
+    }
     SUBCASE("sqrt")
     {
         check_unary_function <Real> (FUNCTION (sqrt)
@@ -1320,6 +1405,160 @@ SUBCASE("Functions of two arguments")
             );
         }
     }
+}
+SUBCASE("Functions of two arguments of <cmath>, after pow")
+{
+        using
+    second_partials_t = std::array <std::array <Real, 2>, 2>;
+        const auto
+    remquo_value = [] (auto const&... arguments)
+    {
+            using std::remquo;
+            int
+        quotient;
+        return remquo (arguments..., &quotient);
+    };
+    // Away from the jumps of fmod and remainder, where the quotient changes.
+    for (auto const& [x0, y0]: { std::pair { 5.3, 2. }, { -5.3, 2. }, { 5.3, -2. }, { 0.7, 3. }, { 7.9, 2. } })
+    {
+            const auto
+        x = opaque <Real> (x0);
+            const auto
+        y = opaque <Real> (y0);
+        INFO ("x = ", x, ", y = ", y);
+            const auto
+        truncated = std::trunc (x / y);
+            const auto
+        nearest = std::nearbyint (x / y);
+        check_function (FUNCTION (fmod), std::array { x, y }, std::array { Real { 1 }, -truncated }, second_partials_t {});
+        check_function (FUNCTION (remainder), std::array { x, y }, std::array { Real { 1 }, -nearest }, second_partials_t {});
+        check_function (remquo_value, std::array { x, y }, std::array { Real { 1 }, -nearest }, second_partials_t {});
+    }
+    for (auto const& [x0, y0]: { std::pair { 2., 3. }, { -2., 3. }, { 2., -3. }, { -2., -3. } })
+    {
+            const auto
+        x = opaque <Real> (x0);
+            const auto
+        y = opaque <Real> (y0);
+        INFO ("x = ", x, ", y = ", y);
+            const auto
+        sign = (x < 0) == (y < 0) ? Real { 1 } : Real { -1 };
+        check_function (FUNCTION (copysign), std::array { x, y }, std::array { sign, Real {} }, second_partials_t {});
+            const auto
+        x_larger = x > y;
+        check_function (FUNCTION (fdim), std::array { x, y }
+            , x_larger ? std::array <Real, 2> { 1, -1 } : std::array <Real, 2> { 0, 0 }
+            , second_partials_t {}
+        );
+        check_function (FUNCTION (fmax), std::array { x, y }
+            , x_larger ? std::array <Real, 2> { 1, 0 } : std::array <Real, 2> { 0, 1 }
+            , second_partials_t {}
+        );
+        check_function (FUNCTION (fmin), std::array { x, y }
+            , x_larger ? std::array <Real, 2> { 0, 1 } : std::array <Real, 2> { 1, 0 }
+            , second_partials_t {}
+        );
+    }
+}
+SUBCASE("fmax, fmin and fdim where the arguments are equal, or NaN")
+{
+    // The derivative is that of the first argument where they are equal, and
+    // that of the one that isn't NaN where one is; that of fdim is zero.
+        const auto
+    nan = std::numeric_limits <Real>::quiet_NaN ();
+        const auto
+    x = independent_variable <2, Real> (opaque <Real> (2), 0);
+        const auto
+    y = independent_variable <2, Real> (opaque <Real> (2), 1);
+        const auto
+    z = independent_variable <2, Real> (nan, 1);
+    for (auto const& r: { fmax (x, y), fmin (x, y), fmax (x, z), fmin (x, z), fmax (z, x), fmin (z, x) })
+    {
+        CHECK(r.value == 2);
+        CHECK(r.differentials[0] == 1);
+        CHECK(r.differentials[1] == 0);
+    }
+    CHECK(fdim (x, y).differentials[0] == 0);
+    CHECK(fdim (x, y).differentials[1] == 0);
+    CHECK(fmax (x, opaque <Real> (2)).differentials[0] == 1);
+    CHECK(fmax (opaque <Real> (2), x).differentials[0] == 0);
+    CHECK(fmax (opaque <Real> (nan), x).differentials[0] == 1);
+}
+SUBCASE("Functions of three arguments of <cmath>")
+{
+        const auto
+    x = std::array { opaque <Real> (2.), opaque <Real> (-3.), opaque <Real> (0.5) };
+    check_function (FUNCTION (fma), x
+        , std::array { x[1], x[0], Real { 1 } }
+        , std::array {
+              std::array <Real, 3> { 0, 1, 0 }
+            , std::array <Real, 3> { 1, 0, 0 }
+            , std::array <Real, 3> { 0, 0, 0 }
+          }
+    );
+        const auto
+    t = std::array { opaque <Real> (1.), opaque <Real> (3.), opaque <Real> (0.25) };
+    check_function (FUNCTION (lerp), t
+        , std::array { 1 - t[2], t[2], t[1] - t[0] }
+        , std::array {
+              std::array <Real, 3> { 0, 0, -1 }
+            , std::array <Real, 3> { 0, 0, 1 }
+            , std::array <Real, 3> { -1, 1, 0 }
+          }
+    );
+}
+SUBCASE("Functions with an exponent, frexp and modf")
+{
+    for (auto const point: { 0.75, -3.5, 1e-3, 1e3 })
+    {
+            const auto
+        x = opaque <Real> (point);
+        INFO ("x = ", x);
+            const auto
+        variable = independent_variable <2, Real> (x, 0);
+        for (auto const n: { 0, 3, -5, 40 })
+        {
+            INFO ("n = ", n);
+                const auto
+            scaled = std::ldexp (Real { 1 }, n);
+            for (auto const& r: { ldexp (variable, n), scalbn (variable, n), scalbln (variable, long { n }) })
+            {
+                CHECK(r.value == std::ldexp (x, n));
+                CHECK(r.differentials[0] == scaled);
+                CHECK(r.differentials[1] == 0);
+            }
+        }
+            int
+        exponent;
+            int
+        expected_exponent;
+            const auto
+        mantissa = frexp (variable, &exponent);
+        CHECK(mantissa.value == std::frexp (x, &expected_exponent));
+        CHECK(exponent == expected_exponent);
+        CHECK(mantissa.differentials[0] == std::ldexp (Real { 1 }, -exponent));
+        CHECK(mantissa.differentials[1] == 0);
+            auto
+        integral_part = dual_t <2, Real> { 0, { 5, 5 } };
+            Real
+        expected_integral_part;
+            const auto
+        fractional_part = modf (variable, &integral_part);
+        CHECK(fractional_part.value == std::modf (x, &expected_integral_part));
+        CHECK(fractional_part.differentials[0] == 1);
+        CHECK(fractional_part.differentials[1] == 0);
+        CHECK(integral_part.value == expected_integral_part);
+        CHECK(integral_part.differentials[0] == 0);
+        CHECK(integral_part.differentials[1] == 0);
+    }
+    // The quotient of remquo, as that of std::remquo.
+        int
+    quotient;
+        int
+    expected_quotient;
+    static_cast <void> (remquo (independent_variable <1, Real> (opaque <Real> (7.9), 0), Real { 2 }, &quotient));
+    static_cast <void> (std::remquo (opaque <Real> (7.9), Real { 2 }, &expected_quotient));
+    CHECK(quotient == expected_quotient);
 }
 SUBCASE("pow at the boundaries of its domain")
 {
