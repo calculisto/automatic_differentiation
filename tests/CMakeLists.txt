@@ -11,7 +11,13 @@ FetchContent_Declare (doctest
 )
 FetchContent_MakeAvailable (doctest)
 
-add_executable (tests tests.cpp test-dual.cpp)
+add_executable (tests
+    tests.cpp
+    test_dual.cpp
+    test_dual_arithmetic.cpp
+    test_dual_functions.cpp
+    test_dual_mixed_types.cpp
+)
 target_link_libraries (tests PRIVATE calculisto::automatic_differentiation doctest::doctest)
 set_target_properties (tests PROPERTIES CXX_EXTENSIONS OFF)
 
