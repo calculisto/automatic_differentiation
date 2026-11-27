@@ -20,14 +20,15 @@ set_target_properties (tests PROPERTIES CXX_EXTENSIONS OFF)
 # Windows, which has no undefined behavior sanitizer with MSVC, and a limited
 # one with clang-cl).
 # Keep the warning flags of gcc and clang in sync with compile_flags.txt, which
-# gives them to clangd.
+# gives them to clangd. With MSVC, /bigobj: the tests instantiate more
+# templates than the default object file format has sections for (C1128).
 set (gnu      "$<CXX_COMPILER_FRONTEND_VARIANT:GNU>")
 set (msvc     "$<CXX_COMPILER_ID:MSVC>")
 set (clang_cl "$<AND:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_FRONTEND_VARIANT:MSVC>>")
 target_compile_options (tests PRIVATE
     "$<${gnu}:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>"
     "$<${gnu}:-fsanitize=address,undefined;-fno-sanitize-recover=all;-fno-omit-frame-pointer>"
-    "$<${msvc}:/W4;/WX;/permissive-;/Zc:preprocessor;/Zc:__cplusplus;/utf-8>"
+    "$<${msvc}:/W4;/WX;/permissive-;/Zc:preprocessor;/Zc:__cplusplus;/utf-8;/bigobj>"
     "$<${msvc}:/fsanitize=address>"
     "$<${clang_cl}:/W4;/WX;-Wpedantic;-Wconversion;-Wshadow;/utf-8>"
     "$<${clang_cl}:/fsanitize=address>"
