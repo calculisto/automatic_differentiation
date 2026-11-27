@@ -742,6 +742,61 @@ TEST_CASE("Compound assignment")
     }
 }
 
+// The arithmetic is constexpr.
+    constexpr auto
+rational_function = [] (auto const& x) { return (x * x + 2 * x - 1) / (x + 1); };
+// At 3: 14 / 4, and its derivative ((2 x + 2) (x + 1) - (x^2 + 2 x - 1)) /
+// (x + 1)^2 = 18 / 16.
+static_assert (rational_function (independent_variable <1> (3., 0)).value == 3.5);
+static_assert (rational_function (independent_variable <1> (3., 0)).differentials[0] == 1.125);
+static_assert ([]
+{
+        auto
+    x = independent_variable <1> (3., 0);
+    x *= x;
+    x += 1;
+    x -= 2;
+    x /= 2;
+    return x.value == 4 and x.differentials[0] == 3;
+} ());
+static_assert ((dual_t <1, float> { 1.5f, { 1 } } * 2.).value == 3);
+static_assert (dual_cast <float> (dual_t <1> { 0.5, { 2 } }).differentials[0] == 2);
+static_assert ([]
+{
+    // The second derivative of x^3 at 3: 6 x = 18.
+        const auto
+    x = independent_variable <1, dual_t <1>> (independent_variable <1> (3., 0), 0);
+    return (x * x * x).differentials[0].differentials[0] == 18;
+} ());
+static_assert (independent_variable <2> (1., 1) < 2);
+
+// Everything is noexcept, except independent_variable, which throws for an
+// index out of range.
+    template <class A, class B>
+    concept
+all_noexcept = requires (A a, A const& c, B const& b)
+{
+    requires noexcept (+c) and noexcept (-c);
+    requires noexcept (c + b) and noexcept (b + c) and noexcept (c - b) and noexcept (b - c);
+    requires noexcept (c * b) and noexcept (b * c) and noexcept (c / b) and noexcept (b / c);
+    requires noexcept (a += b) and noexcept (a -= b) and noexcept (a *= b) and noexcept (a /= b);
+    requires noexcept (c == b) and noexcept (c <=> b) and noexcept (c < b);
+    requires noexcept (atan2 (c, b)) and noexcept (hypot (c, b)) and noexcept (hypot (c, b, c));
+    requires noexcept (pow (c, b)) and noexcept (pow (b, c));
+    requires noexcept (acos (c)) and noexcept (asin (c)) and noexcept (atan (c));
+    requires noexcept (cos (c)) and noexcept (sin (c)) and noexcept (tan (c));
+    requires noexcept (acosh (c)) and noexcept (asinh (c)) and noexcept (atanh (c));
+    requires noexcept (cosh (c)) and noexcept (sinh (c)) and noexcept (tanh (c));
+    requires noexcept (exp (c)) and noexcept (exp2 (c)) and noexcept (expm1 (c));
+    requires noexcept (log (c)) and noexcept (log10 (c)) and noexcept (log1p (c)) and noexcept (log2 (c));
+    requires noexcept (cbrt (c)) and noexcept (abs (c)) and noexcept (fabs (c)) and noexcept (sqrt (c));
+    requires noexcept (dual_cast <float> (c));
+};
+static_assert (all_noexcept <dual_t <2>, dual_t <2>>);
+static_assert (all_noexcept <dual_t <2>, int>);
+static_assert (all_noexcept <dual_t <2>, dual_t <2, float>>);
+static_assert (not noexcept (independent_variable <2> (1., 0)));
+
 // Arrays of duals combine with duals element-wise, as with numbers.
     template <class A, class B, class Result>
     concept

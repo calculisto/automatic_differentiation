@@ -12,6 +12,13 @@ calculisto::automatic_differentiation
 {
     using calculisto::array::array_t;
 
+// The arithmetic (the operators, compound assignment, the comparisons,
+// dual_cast and independent_variable) is constexpr. The functions of <cmath>
+// are not, like those of std in C++20. Everything is noexcept, except
+// independent_variable, which throws std::out_of_range for an index out of
+// range: the functions accept every argument, giving NaN where the result
+// isn't defined, as for numbers.
+
     namespace
 detail
 {
@@ -89,7 +96,7 @@ detail
     // The value of x at the bottom: x itself, or that of the value of a dual.
         template <class T>
         constexpr floating_point_type_t <T>
-    floating_point_value (T const& x)
+    floating_point_value (T const& x) noexcept
     {
         if constexpr (is_dual <T>)
         {
@@ -117,7 +124,7 @@ detail
     // which compares the value only.
         template <class T>
         constexpr bool
-    is_exactly_zero (T const& x)
+    is_exactly_zero (T const& x) noexcept
     {
         if constexpr (is_dual <T>)
         {
@@ -172,7 +179,7 @@ independent_variable (std::type_identity_t <T> value, std::size_t index)
     template <dual_value_type U, std::size_t N, class T>
     requires detail::same_structure <T, U>
     constexpr dual_t <N, U>
-dual_cast (dual_t <N, T> const& a)
+dual_cast (dual_t <N, T> const& a) noexcept
 {
         const auto
     convert = [] (T const& x) -> U
@@ -203,39 +210,39 @@ dual_cast (dual_t <N, T> const& a)
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
     constexpr bool
-operator == (dual_t <N, T> const& a, dual_t <N, U> const& b)
+operator == (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
     return a.value == b.value;
 }
     template <std::size_t N, class T, detail::arithmetic U>
     constexpr bool
-operator == (dual_t <N, T> const& a, U const& b)
+operator == (dual_t <N, T> const& a, U const& b) noexcept
 {
     return a.value == static_cast <std::common_type_t <detail::floating_point_type_t <T>, U>> (b);
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
     constexpr auto
-operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b)
+operator <=> (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
     return a.value <=> b.value;
 }
     template <std::size_t N, class T, detail::arithmetic U>
     constexpr auto
-operator <=> (dual_t <N, T> const& a, U const& b)
+operator <=> (dual_t <N, T> const& a, U const& b) noexcept
 {
     return a.value <=> static_cast <std::common_type_t <detail::floating_point_type_t <T>, U>> (b);
 }
 
     template <std::size_t N, class T>
-    auto
-operator + (dual_t <N, T> a)
+    constexpr auto
+operator + (dual_t <N, T> a) noexcept
 {
     return a;
 }
     template <std::size_t N, class T>
-    auto
-operator - (dual_t <N, T> const& a)
+    constexpr auto
+operator - (dual_t <N, T> const& a) noexcept
 {
     return dual_t { -a.value, -a.differentials };
 }
@@ -245,8 +252,8 @@ operator - (dual_t <N, T> const& a)
 // float times a double is a dual of double. As in the arithmetic on numbers,
 // the arguments are converted to that type first: result_t below.
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator + (dual_t <N, T> const& a, U const& b)
+    constexpr auto
+operator + (dual_t <N, T> const& a, U const& b) noexcept
 {
         using
     result_t = decltype (a.value + b);
@@ -255,8 +262,8 @@ operator + (dual_t <N, T> const& a, U const& b)
     return dual_t { x.value + static_cast <detail::floating_point_type_t <result_t>> (b), x.differentials };
 }
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator + (U const& a, dual_t <N, T> const& b)
+    constexpr auto
+operator + (U const& a, dual_t <N, T> const& b) noexcept
 {
         using
     result_t = decltype (a + b.value);
@@ -266,8 +273,8 @@ operator + (U const& a, dual_t <N, T> const& b)
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
-    auto
-operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
+    constexpr auto
+operator + (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using
     result_t = decltype (a.value + b.value);
@@ -282,8 +289,8 @@ operator + (dual_t <N, T> const& a, dual_t <N, U> const& b)
 }
 
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator - (dual_t <N, T> const& a, U const& b)
+    constexpr auto
+operator - (dual_t <N, T> const& a, U const& b) noexcept
 {
         using
     result_t = decltype (a.value - b);
@@ -292,8 +299,8 @@ operator - (dual_t <N, T> const& a, U const& b)
     return dual_t { x.value - static_cast <detail::floating_point_type_t <result_t>> (b), x.differentials };
 }
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator - (U const& a, dual_t <N, T> const& b)
+    constexpr auto
+operator - (U const& a, dual_t <N, T> const& b) noexcept
 {
         using
     result_t = decltype (a - b.value);
@@ -303,8 +310,8 @@ operator - (U const& a, dual_t <N, T> const& b)
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
-    auto
-operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
+    constexpr auto
+operator - (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using
     result_t = decltype (a.value - b.value);
@@ -319,8 +326,8 @@ operator - (dual_t <N, T> const& a, dual_t <N, U> const& b)
 }
 
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator * (dual_t <N, T> const& a, U const& b)
+    constexpr auto
+operator * (dual_t <N, T> const& a, U const& b) noexcept
 {
         using
     result_t = decltype (a.value * b);
@@ -331,8 +338,8 @@ operator * (dual_t <N, T> const& a, U const& b)
     return dual_t { x.value * s, x.differentials * s };
 }
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator * (U const& a, dual_t <N, T> const& b)
+    constexpr auto
+operator * (U const& a, dual_t <N, T> const& b) noexcept
 {
         using
     result_t = decltype (a * b.value);
@@ -344,8 +351,8 @@ operator * (U const& a, dual_t <N, T> const& b)
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
-    auto
-operator * (dual_t <N, T> const& a, dual_t <N, U> const& b)
+    constexpr auto
+operator * (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using
     result_t = decltype (a.value * b.value);
@@ -360,8 +367,8 @@ operator * (dual_t <N, T> const& a, dual_t <N, U> const& b)
 }
 
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator / (dual_t <N, T> const& a, U const& b)
+    constexpr auto
+operator / (dual_t <N, T> const& a, U const& b) noexcept
 {
         using
     result_t = decltype (a.value / b);
@@ -375,8 +382,8 @@ operator / (dual_t <N, T> const& a, U const& b)
     };
 }
     template <std::size_t N, class T, detail::arithmetic U>
-    auto
-operator / (U const& a, dual_t <N, T> const& b)
+    constexpr auto
+operator / (U const& a, dual_t <N, T> const& b) noexcept
 {
         using
     result_t = decltype (a / b.value);
@@ -391,8 +398,8 @@ operator / (U const& a, dual_t <N, T> const& b)
 }
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
-    auto
-operator / (dual_t <N, T> const& a, dual_t <N, U> const& b)
+    constexpr auto
+operator / (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using
     result_t = decltype (a.value / b.value);
@@ -415,32 +422,32 @@ operator / (dual_t <N, T> const& a, dual_t <N, U> const& b)
 // this header rather than in the code using it.
     template <std::size_t N, class T, class U>
     requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a + b); }
-    dual_t <N, T>&
-operator += (dual_t <N, T>& a, U const& b)
+    constexpr dual_t <N, T>&
+operator += (dual_t <N, T>& a, U const& b) noexcept
 {
     a = dual_cast <T> (a + b);
     return a;
 }
     template <std::size_t N, class T, class U>
     requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a - b); }
-    dual_t <N, T>&
-operator -= (dual_t <N, T>& a, U const& b)
+    constexpr dual_t <N, T>&
+operator -= (dual_t <N, T>& a, U const& b) noexcept
 {
     a = dual_cast <T> (a - b);
     return a;
 }
     template <std::size_t N, class T, class U>
     requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a * b); }
-    dual_t <N, T>&
-operator *= (dual_t <N, T>& a, U const& b)
+    constexpr dual_t <N, T>&
+operator *= (dual_t <N, T>& a, U const& b) noexcept
 {
     a = dual_cast <T> (a * b);
     return a;
 }
     template <std::size_t N, class T, class U>
     requires requires (dual_t <N, T> const& a, U const& b) { dual_cast <T> (a / b); }
-    dual_t <N, T>&
-operator /= (dual_t <N, T>& a, U const& b)
+    constexpr dual_t <N, T>&
+operator /= (dual_t <N, T>& a, U const& b) noexcept
 {
     a = dual_cast <T> (a / b);
     return a;
@@ -448,7 +455,7 @@ operator /= (dual_t <N, T>& a, U const& b)
 
     template <std::size_t N, class T>
     auto
-acos (dual_t <N, T> const& a)
+acos (dual_t <N, T> const& a) noexcept
 {
         using std::acos, std::sqrt;
     // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
@@ -458,7 +465,7 @@ acos (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-asin (dual_t <N, T> const& a)
+asin (dual_t <N, T> const& a) noexcept
 {
         using std::asin, std::sqrt;
     // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
@@ -468,7 +475,7 @@ asin (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-atan (dual_t <N, T> const& a)
+atan (dual_t <N, T> const& a) noexcept
 {
         using std::atan;
     return dual_t { 
@@ -478,7 +485,7 @@ atan (dual_t <N, T> const& a)
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
     auto
-atan2 (dual_t <N, T> const& a, dual_t <N, U> const& b)
+atan2 (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using std::atan2;
         using
@@ -497,7 +504,7 @@ atan2 (dual_t <N, T> const& a, dual_t <N, U> const& b)
 }
     template <std::size_t N, class T, detail::arithmetic U>
     auto
-atan2 (dual_t <N, T> const& a, U const& b)
+atan2 (dual_t <N, T> const& a, U const& b) noexcept
 {
         using std::atan2;
         using
@@ -513,7 +520,7 @@ atan2 (dual_t <N, T> const& a, U const& b)
 }
     template <std::size_t N, class T, detail::arithmetic U>
     auto
-atan2 (U const& a, dual_t <N, T> const& b)
+atan2 (U const& a, dual_t <N, T> const& b) noexcept
 {
         using std::atan2;
         using
@@ -529,21 +536,21 @@ atan2 (U const& a, dual_t <N, T> const& b)
 }
     template <std::size_t N, class T>
     auto
-cos (dual_t <N, T> const& a)
+cos (dual_t <N, T> const& a) noexcept
 {
         using std::cos, std::sin;
     return dual_t { cos (a.value), -a.differentials * sin (a.value) };
 }
     template <std::size_t N, class T>
     auto
-sin (dual_t <N, T> const& a)
+sin (dual_t <N, T> const& a) noexcept
 {
         using std::sin, std::cos;
     return dual_t { sin (a.value), a.differentials * cos (a.value) };
 }
     template <std::size_t N, class T>
     auto
-tan (dual_t <N, T> const& a)
+tan (dual_t <N, T> const& a) noexcept
 {
         using std::tan;
         const auto
@@ -552,7 +559,7 @@ tan (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-acosh (dual_t <N, T> const& a)
+acosh (dual_t <N, T> const& a) noexcept
 {
         using std::acosh, std::sqrt;
     // (x - 1) (x + 1) rather than x^2 - 1, which cancels near x = 1.
@@ -562,7 +569,7 @@ acosh (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-asinh (dual_t <N, T> const& a)
+asinh (dual_t <N, T> const& a) noexcept
 {
         using std::asinh, std::sqrt;
     return dual_t { 
@@ -571,7 +578,7 @@ asinh (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-atanh (dual_t <N, T> const& a)
+atanh (dual_t <N, T> const& a) noexcept
 {
         using std::atanh;
     // (1 - x) (1 + x) rather than 1 - x^2, which cancels near |x| = 1.
@@ -581,21 +588,21 @@ atanh (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-cosh (dual_t <N, T> const& a)
+cosh (dual_t <N, T> const& a) noexcept
 {
         using std::cosh, std::sinh;
     return dual_t { cosh (a.value), a.differentials * sinh (a.value) };
 }
     template <std::size_t N, class T>
     auto
-sinh (dual_t <N, T> const& a)
+sinh (dual_t <N, T> const& a) noexcept
 {
         using std::sinh, std::cosh;
     return dual_t { sinh (a.value), a.differentials * cosh (a.value) };
 }
     template <std::size_t N, class T>
     auto
-tanh (dual_t <N, T> const& a)
+tanh (dual_t <N, T> const& a) noexcept
 {
         using std::tanh, std::cosh;
     // 1 / cosh^2 rather than 1 - tanh^2, which cancels for large |x|, and
@@ -606,7 +613,7 @@ tanh (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-exp (dual_t <N, T> const& a)
+exp (dual_t <N, T> const& a) noexcept
 {
         using std::exp;
         const auto
@@ -615,7 +622,7 @@ exp (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-exp2 (dual_t <N, T> const& a)
+exp2 (dual_t <N, T> const& a) noexcept
 {
         using std::exp2;
         const auto
@@ -624,7 +631,7 @@ exp2 (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-expm1 (dual_t <N, T> const& a)
+expm1 (dual_t <N, T> const& a) noexcept
 {
         using std::expm1, std::exp;
     return dual_t { expm1 (a.value), a.differentials * exp (a.value) };
@@ -634,14 +641,14 @@ expm1 (dual_t <N, T> const& a)
 // double ldexp(double x, int exp);
     template <std::size_t N, class T>
     auto
-log (dual_t <N, T> const& a)
+log (dual_t <N, T> const& a) noexcept
 {
         using std::log;
     return dual_t { log (a.value), a.differentials / a.value };
 }
     template <std::size_t N, class T>
     auto
-log10 (dual_t <N, T> const& a)
+log10 (dual_t <N, T> const& a) noexcept
 {
         using std::log10;
     return dual_t { 
@@ -651,14 +658,14 @@ log10 (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-log1p (dual_t <N, T> const& a)
+log1p (dual_t <N, T> const& a) noexcept
 {
         using std::log1p;
     return dual_t { log1p (a.value), a.differentials / (a.value + 1) };
 }
     template <std::size_t N, class T>
     auto
-log2 (dual_t <N, T> const& a)
+log2 (dual_t <N, T> const& a) noexcept
 {
         using std::log2;
     return dual_t { 
@@ -672,7 +679,7 @@ log2 (dual_t <N, T> const& a)
 // double scalbln(double x, long int n);
     template <std::size_t N, class T>
     auto
-cbrt (dual_t <N, T> const& a)
+cbrt (dual_t <N, T> const& a) noexcept
 {
         using std::cbrt;
         const auto
@@ -684,7 +691,7 @@ cbrt (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-abs (dual_t <N, T> const& a)
+abs (dual_t <N, T> const& a) noexcept
 {
         using std::abs, std::copysign;
     return dual_t { 
@@ -694,7 +701,7 @@ abs (dual_t <N, T> const& a)
 }
     template <std::size_t N, class T>
     auto
-fabs (dual_t <N, T> const& a)
+fabs (dual_t <N, T> const& a) noexcept
 {
         using std::fabs, std::copysign;
     return dual_t { 
@@ -705,7 +712,7 @@ fabs (dual_t <N, T> const& a)
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
     auto
-hypot (dual_t <N, T> const& a, dual_t <N, U> const& b)
+hypot (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using std::hypot;
         using
@@ -724,7 +731,7 @@ hypot (dual_t <N, T> const& a, dual_t <N, U> const& b)
 }
     template <std::size_t N, class T, detail::arithmetic U>
     auto
-hypot (dual_t <N, T> const& a, U const& b)
+hypot (dual_t <N, T> const& a, U const& b) noexcept
 {
         using std::hypot;
         using
@@ -742,7 +749,7 @@ hypot (dual_t <N, T> const& a, U const& b)
 }
     template <std::size_t N, detail::arithmetic T, class U>
     auto
-hypot (T const& a, dual_t <N, U> const& b)
+hypot (T const& a, dual_t <N, U> const& b) noexcept
 {
         using std::hypot;
         using
@@ -761,7 +768,7 @@ hypot (T const& a, dual_t <N, U> const& b)
     template <std::size_t N, class T, class U, class V>
     requires detail::same_structure <T, U> and detail::same_structure <T, V>
     auto
-hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
+hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c) noexcept
 {
         using std::hypot;
         using
@@ -784,7 +791,7 @@ hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
     template <std::size_t N, class T, class U, detail::arithmetic V>
     requires detail::same_structure <T, U>
     auto
-hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c)
+hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c) noexcept
 {
         using std::hypot;
         using
@@ -806,7 +813,7 @@ hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c)
     template <std::size_t N, class T, detail::arithmetic U, class V>
     requires detail::same_structure <T, V>
     auto
-hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c)
+hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c) noexcept
 {
         using std::hypot;
         using
@@ -828,7 +835,7 @@ hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c)
     template <std::size_t N, detail::arithmetic T, class U, class V>
     requires detail::same_structure <U, V>
     auto
-hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
+hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c) noexcept
 {
         using std::hypot;
         using
@@ -849,7 +856,7 @@ hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c)
 }
     template <std::size_t N, detail::arithmetic T, detail::arithmetic U, class V>
     auto
-hypot (T const& a, U const& b, dual_t <N, V> const& c)
+hypot (T const& a, U const& b, dual_t <N, V> const& c) noexcept
 {
         using std::hypot;
         using
@@ -869,7 +876,7 @@ hypot (T const& a, U const& b, dual_t <N, V> const& c)
 }
     template <std::size_t N, class T, detail::arithmetic U, detail::arithmetic V>
     auto
-hypot (dual_t <N, T> const& a, U const& b, V const& c)
+hypot (dual_t <N, T> const& a, U const& b, V const& c) noexcept
 {
         using std::hypot;
         using
@@ -889,7 +896,7 @@ hypot (dual_t <N, T> const& a, U const& b, V const& c)
 }
     template <std::size_t N, detail::arithmetic T, class U, detail::arithmetic V>
     auto
-hypot (T const& a, dual_t <N, U> const& b, V const& c)
+hypot (T const& a, dual_t <N, U> const& b, V const& c) noexcept
 {
         using std::hypot;
         using
@@ -925,7 +932,7 @@ detail
     // dual whose value is zero but not its differentials is not a constant.
         template <class Result, class T, class U>
         Result
-    pow_partial_base (T const& a, U const& b)
+    pow_partial_base (T const& a, U const& b) noexcept
     {
             using std::pow;
         if (is_exactly_zero (b))
@@ -937,7 +944,7 @@ detail
 
         template <class T, class P>
         P
-    pow_partial_exponent (T const& a, P const& p)
+    pow_partial_exponent (T const& a, P const& p) noexcept
     {
             using std::log;
         if (is_exactly_zero (p) and a >= 0)
@@ -951,7 +958,7 @@ detail
     template <std::size_t N, class T, class U>
     requires detail::same_structure <T, U>
     auto
-pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
+pow (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
 {
         using std::pow;
         using
@@ -989,7 +996,7 @@ pow (dual_t <N, T> const& a, dual_t <N, U> const& b)
 }
     template <std::size_t N, class T, detail::arithmetic U>
     auto
-pow (dual_t <N, T> const& a, U const& b)
+pow (dual_t <N, T> const& a, U const& b) noexcept
 {
         using std::pow;
         using
@@ -1013,7 +1020,7 @@ pow (dual_t <N, T> const& a, U const& b)
 }
     template <std::size_t N, detail::arithmetic T, class U>
     auto
-pow (T const& a, dual_t <N, U> const& b)
+pow (T const& a, dual_t <N, U> const& b) noexcept
 {
         using std::pow;
         using
@@ -1039,7 +1046,7 @@ pow (T const& a, dual_t <N, U> const& b)
 }
     template <std::size_t N, class T>
     auto
-sqrt (dual_t <N, T> const& a)
+sqrt (dual_t <N, T> const& a) noexcept
 {
         using std::sqrt;
         const auto
