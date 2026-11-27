@@ -1819,6 +1819,33 @@ SUBCASE("A zero differential stays zero")
         CHECK(r.differentials[2] == 0);
     }
 }
+SUBCASE("Signed zeros, as with a number")
+{
+    // A function of duals gives the same zeros as with a number in place of
+    // a dual whose differential is zero: the terms whose differential is
+    // zero are skipped, not added, which would turn a -0 into +0.
+        const auto
+    zero = opaque <Real> (0);
+    {
+        // d hypot (a, b) / db = b / h = 0, times the differential -1.
+            const auto
+        a = dual_t <2, Real> { opaque <Real> (3), { 1, 0 } };
+            const auto
+        b = dual_t <2, Real> { zero, { 0, -1 } };
+        CHECK(hypot (a, b).differentials[1] == 0);
+        CHECK(std::signbit (hypot (a, b).differentials[1]) == std::signbit (hypot (a.value, b).differentials[1]));
+        CHECK(std::signbit (hypot (a, b).differentials[1]));
+    }
+    {
+        // d atan2 (y, x) / dx = -y / (x^2 + y^2) = -0.
+            const auto
+        y = dual_t <2, Real> { zero, { 1, 0 } };
+            const auto
+        x = dual_t <2, Real> { opaque <Real> (2), { 0, 1 } };
+        CHECK(std::signbit (atan2 (y, x).differentials[1]) == std::signbit (atan2 (y.value, x).differentials[1]));
+        CHECK(std::signbit (atan2 (y, x).differentials[1]));
+    }
+}
 SUBCASE("pow with nested duals")
 {
     // A differential whose value is zero, but not its own differentials, is

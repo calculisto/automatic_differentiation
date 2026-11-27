@@ -675,60 +675,32 @@ atan (dual_t <N, T> const& a) noexcept
         , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d / denominator; })
     };
 }
-    template <std::size_t N, class T, class U>
-    requires detail::same_structure <T, U>
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
     auto
-atan2 (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
+atan2 (A const& a, B const& b) noexcept
 {
         using std::atan2;
         using
-    result_t = decltype (atan2 (a.value, b.value));
+    result_t = decltype (atan2 (detail::value_of (a), detail::value_of (b)));
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         const auto
-    y = dual_cast <result_t> (a);
+    y = detail::convert <result_t> (a);
         const auto
-    x = dual_cast <result_t> (b);
+    x = detail::convert <result_t> (b);
         const auto
-    tmp = x.value * x.value + y.value * y.value;
-    return dual_t {
-          atan2 (y.value, x.value)
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return -d * y.value / tmp; })
-        + detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-    };
-}
-    template <std::size_t N, class T, detail::arithmetic U>
-    auto
-atan2 (dual_t <N, T> const& a, U const& b) noexcept
-{
-        using std::atan2;
-        using
-    result_t = decltype (atan2 (a.value, b));
+    y_value = detail::value_of (y);
         const auto
-    y = dual_cast <result_t> (a);
+    x_value = detail::value_of (x);
         const auto
-    x = static_cast <detail::floating_point_type_t <result_t>> (b);
-        const auto
-    tmp = x * x + y.value * y.value;
-    return dual_t {
-          atan2 (y.value, x)
-        , detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * x / tmp; })
-    };
-}
-    template <std::size_t N, class T, detail::arithmetic U>
-    auto
-atan2 (U const& a, dual_t <N, T> const& b) noexcept
-{
-        using std::atan2;
-        using
-    result_t = decltype (atan2 (a, b.value));
-        const auto
-    y = static_cast <detail::floating_point_type_t <result_t>> (a);
-        const auto
-    x = dual_cast <result_t> (b);
-        const auto
-    tmp = x.value * x.value + y * y;
-    return dual_t {
-          atan2 (y, x.value)
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return -d * y / tmp; })
+    tmp = x_value * x_value + y_value * y_value;
+    return dual_t <n, result_t> {
+          atan2 (y_value, x_value)
+        , detail::combine_terms <result_t, n> (
+              detail::term (x, [&] (auto const& d) { return -d * y_value / tmp; })
+            , detail::term (y, [&] (auto const& d) { return d * x_value / tmp; })
+          )
     };
 }
     template <std::size_t N, class T>
@@ -971,209 +943,65 @@ fabs (dual_t <N, T> const& a) noexcept
         , detail::transform_differentials (a.differentials, [&] (auto const& d) { return d * sign; })
     };
 }
-    template <std::size_t N, class T, class U>
-    requires detail::same_structure <T, U>
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
     auto
-hypot (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
+hypot (A const& a, B const& b) noexcept
 {
         using std::hypot;
         using
-    result_t = decltype (hypot (a.value, b.value));
+    result_t = decltype (hypot (detail::value_of (a), detail::value_of (b)));
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         const auto
-    x = dual_cast <result_t> (a);
+    x = detail::convert <result_t> (a);
         const auto
-    y = dual_cast <result_t> (b);
+    y = detail::convert <result_t> (b);
         const auto
-    tmp = hypot (x.value, y.value);
-    return dual_t {
+    x_value = detail::value_of (x);
+        const auto
+    y_value = detail::value_of (y);
+        const auto
+    tmp = hypot (x_value, y_value);
+    return dual_t <n, result_t> {
           tmp
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-        + detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * y.value / tmp; })
+        , detail::combine_terms <result_t, n> (
+              detail::term (x, [&] (auto const& d) { return d * x_value / tmp; })
+            , detail::term (y, [&] (auto const& d) { return d * y_value / tmp; })
+          )
     };
 }
-    template <std::size_t N, class T, detail::arithmetic U>
+    template <class A, class B, class C>
+    requires detail::dual_arguments <A, B, C>
     auto
-hypot (dual_t <N, T> const& a, U const& b) noexcept
+hypot (A const& a, B const& b, C const& c) noexcept
 {
         using std::hypot;
         using
-    result_t = decltype (hypot (a.value, b));
+    result_t = decltype (hypot (detail::value_of (a), detail::value_of (b), detail::value_of (c)));
+        constexpr auto
+    n = detail::common_differentials_count <A, B, C>;
         const auto
-    x = dual_cast <result_t> (a);
+    x = detail::convert <result_t> (a);
         const auto
-    y = static_cast <detail::floating_point_type_t <result_t>> (b);
+    y = detail::convert <result_t> (b);
         const auto
-    tmp = hypot (x.value, y);
-    return dual_t {
+    z = detail::convert <result_t> (c);
+        const auto
+    x_value = detail::value_of (x);
+        const auto
+    y_value = detail::value_of (y);
+        const auto
+    z_value = detail::value_of (z);
+        const auto
+    tmp = hypot (x_value, y_value, z_value);
+    return dual_t <n, result_t> {
           tmp
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-    };
-}
-    template <std::size_t N, detail::arithmetic T, class U>
-    auto
-hypot (T const& a, dual_t <N, U> const& b) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a, b.value));
-        const auto
-    x = static_cast <detail::floating_point_type_t <result_t>> (a);
-        const auto
-    y = dual_cast <result_t> (b);
-        const auto
-    tmp = hypot (x, y.value);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * y.value / tmp; })
-    };
-}
-    template <std::size_t N, class T, class U, class V>
-    requires detail::same_structure <T, U> and detail::same_structure <T, V>
-    auto
-hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, dual_t <N, V> const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a.value, b.value, c.value));
-        const auto
-    x = dual_cast <result_t> (a);
-        const auto
-    y = dual_cast <result_t> (b);
-        const auto
-    z = dual_cast <result_t> (c);
-        const auto
-    tmp = hypot (x.value, y.value, z.value);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-        + detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * y.value / tmp; })
-        + detail::transform_differentials (z.differentials, [&] (auto const& d) { return d * z.value / tmp; })
-    };
-}
-    template <std::size_t N, class T, class U, detail::arithmetic V>
-    requires detail::same_structure <T, U>
-    auto
-hypot (dual_t <N, T> const& a, dual_t <N, U> const& b, V const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a.value, b.value, c));
-        const auto
-    x = dual_cast <result_t> (a);
-        const auto
-    y = dual_cast <result_t> (b);
-        const auto
-    z = static_cast <detail::floating_point_type_t <result_t>> (c);
-        const auto
-    tmp = hypot (x.value, y.value, z);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-        + detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * y.value / tmp; })
-    };
-}
-    template <std::size_t N, class T, detail::arithmetic U, class V>
-    requires detail::same_structure <T, V>
-    auto
-hypot (dual_t <N, T> const& a, U const& b, dual_t <N, V> const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a.value, b, c.value));
-        const auto
-    x = dual_cast <result_t> (a);
-        const auto
-    y = static_cast <detail::floating_point_type_t <result_t>> (b);
-        const auto
-    z = dual_cast <result_t> (c);
-        const auto
-    tmp = hypot (x.value, y, z.value);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-        + detail::transform_differentials (z.differentials, [&] (auto const& d) { return d * z.value / tmp; })
-    };
-}
-    template <std::size_t N, detail::arithmetic T, class U, class V>
-    requires detail::same_structure <U, V>
-    auto
-hypot (T const& a, dual_t <N, U> const& b, dual_t <N, V> const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a, b.value, c.value));
-        const auto
-    x = static_cast <detail::floating_point_type_t <result_t>> (a);
-        const auto
-    y = dual_cast <result_t> (b);
-        const auto
-    z = dual_cast <result_t> (c);
-        const auto
-    tmp = hypot (x, y.value, z.value);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * y.value / tmp; })
-        + detail::transform_differentials (z.differentials, [&] (auto const& d) { return d * z.value / tmp; })
-    };
-}
-    template <std::size_t N, detail::arithmetic T, detail::arithmetic U, class V>
-    auto
-hypot (T const& a, U const& b, dual_t <N, V> const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a, b, c.value));
-        const auto
-    x = static_cast <detail::floating_point_type_t <result_t>> (a);
-        const auto
-    y = static_cast <detail::floating_point_type_t <result_t>> (b);
-        const auto
-    z = dual_cast <result_t> (c);
-        const auto
-    tmp = hypot (x, y, z.value);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (z.differentials, [&] (auto const& d) { return d * z.value / tmp; })
-    };
-}
-    template <std::size_t N, class T, detail::arithmetic U, detail::arithmetic V>
-    auto
-hypot (dual_t <N, T> const& a, U const& b, V const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a.value, b, c));
-        const auto
-    x = dual_cast <result_t> (a);
-        const auto
-    y = static_cast <detail::floating_point_type_t <result_t>> (b);
-        const auto
-    z = static_cast <detail::floating_point_type_t <result_t>> (c);
-        const auto
-    tmp = hypot (x.value, y, z);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (x.differentials, [&] (auto const& d) { return d * x.value / tmp; })
-    };
-}
-    template <std::size_t N, detail::arithmetic T, class U, detail::arithmetic V>
-    auto
-hypot (T const& a, dual_t <N, U> const& b, V const& c) noexcept
-{
-        using std::hypot;
-        using
-    result_t = decltype (hypot (a, b.value, c));
-        const auto
-    x = static_cast <detail::floating_point_type_t <result_t>> (a);
-        const auto
-    y = dual_cast <result_t> (b);
-        const auto
-    z = static_cast <detail::floating_point_type_t <result_t>> (c);
-        const auto
-    tmp = hypot (x, y.value, z);
-    return dual_t {
-          tmp
-        , detail::transform_differentials (y.differentials, [&] (auto const& d) { return d * y.value / tmp; })
+        , detail::combine_terms <result_t, n> (
+              detail::term (x, [&] (auto const& d) { return d * x_value / tmp; })
+            , detail::term (y, [&] (auto const& d) { return d * y_value / tmp; })
+            , detail::term (z, [&] (auto const& d) { return d * z_value / tmp; })
+          )
     };
 }
 // d pow (a, b) = b pow (a, b - 1) da + pow (a, b) log (a) db. A term whose
@@ -1217,94 +1045,58 @@ detail
     }
 } // namespace detail
 
-    template <std::size_t N, class T, class U>
-    requires detail::same_structure <T, U>
+    template <class A, class B>
+    requires detail::dual_arguments <A, B>
     auto
-pow (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept
+pow (A const& a, B const& b) noexcept
 {
         using std::pow;
         using
-    result_t = decltype (pow (a.value, b.value));
+    result_t = decltype (pow (detail::value_of (a), detail::value_of (b)));
+        constexpr auto
+    n = detail::common_differentials_count <A, B>;
         const auto
-    x = dual_cast <result_t> (a);
+    x = detail::convert <result_t> (a);
         const auto
-    y = dual_cast <result_t> (b);
+    y = detail::convert <result_t> (b);
         const auto
-    p = pow (x.value, y.value);
+    x_value = detail::value_of (x);
         const auto
-    partial_x = detail::pow_partial_base <result_t> (x.value, y.value);
+    y_value = detail::value_of (y);
         const auto
-    partial_y = detail::pow_partial_exponent (x.value, p);
-        auto
-    r = dual_t <N, result_t> { p };
-    for (std::size_t i = 0; i < N; ++i)
+    p = pow (x_value, y_value);
+    // The partial derivatives, only for the arguments that are duals.
+        const auto
+    partial_x = [&]
     {
-        // The first term is assigned rather than added to the zero of r, which
-        // would turn a -0 into +0.
-        if (not detail::is_exactly_zero (x.differentials[i]))
+        if constexpr (detail::is_dual <A>)
         {
-            r.differentials[i] = x.differentials[i] * partial_x;
-            if (not detail::is_exactly_zero (y.differentials[i]))
-            {
-                r.differentials[i] += y.differentials[i] * partial_y;
-            }
+            return detail::pow_partial_base <result_t> (x_value, y_value);
         }
-        else if (not detail::is_exactly_zero (y.differentials[i]))
+        else
         {
-            r.differentials[i] = y.differentials[i] * partial_y;
+            return result_t {};
         }
-    }
-    return r;
-}
-    template <std::size_t N, class T, detail::arithmetic U>
-    auto
-pow (dual_t <N, T> const& a, U const& b) noexcept
-{
-        using std::pow;
-        using
-    result_t = decltype (pow (a.value, b));
+    } ();
         const auto
-    x = dual_cast <result_t> (a);
-        const auto
-    y = static_cast <detail::floating_point_type_t <result_t>> (b);
-        const auto
-    partial_x = detail::pow_partial_base <result_t> (x.value, y);
-        auto
-    r = dual_t <N, result_t> { pow (x.value, y) };
-    for (std::size_t i = 0; i < N; ++i)
+    partial_y = [&]
     {
-        if (not detail::is_exactly_zero (x.differentials[i]))
+        if constexpr (detail::is_dual <B>)
         {
-            r.differentials[i] = x.differentials[i] * partial_x;
+            return detail::pow_partial_exponent (x_value, p);
         }
-    }
-    return r;
-}
-    template <std::size_t N, detail::arithmetic T, class U>
-    auto
-pow (T const& a, dual_t <N, U> const& b) noexcept
-{
-        using std::pow;
-        using
-    result_t = decltype (pow (a, b.value));
-        const auto
-    x = static_cast <detail::floating_point_type_t <result_t>> (a);
-        const auto
-    y = dual_cast <result_t> (b);
-        const auto
-    p = pow (x, y.value);
-        const auto
-    partial_y = detail::pow_partial_exponent (x, p);
-        auto
-    r = dual_t <N, result_t> { p };
-    for (std::size_t i = 0; i < N; ++i)
-    {
-        if (not detail::is_exactly_zero (y.differentials[i]))
+        else
         {
-            r.differentials[i] = y.differentials[i] * partial_y;
+            return result_t {};
         }
-    }
-    return r;
+    } ();
+    return dual_t <n, result_t> {
+          p
+        , detail::combine_terms <result_t, n> (
+              detail::term (x, [&] (auto const& d) { return d * partial_x; })
+            , detail::term (y, [&] (auto const& d) { return d * partial_y; })
+          )
+    };
 }
     template <std::size_t N, class T>
     auto
