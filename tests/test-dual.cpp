@@ -1393,6 +1393,77 @@ SUBCASE("pow at the boundaries of its domain")
         }
     }
 }
+SUBCASE("abs and fabs at 0")
+{
+    // The derivative is that of the sign of the zero.
+    for (auto const& [x, derivative]: { std::pair { 0., 1. }, { -0., -1. } })
+    {
+            const auto
+        variable = independent_variable <1, Real> (opaque <Real> (x), 0);
+        CHECK(abs (variable).differentials[0] == static_cast <Real> (derivative));
+        CHECK(fabs (variable).differentials[0] == static_cast <Real> (derivative));
+    }
+}
+SUBCASE("A zero differential stays zero")
+{
+    // Where a derivative is infinite, or NaN, a zero differential stays zero
+    // rather than giving NaN (0 times infinity), as in pow: a constant
+    // doesn't change a derivative. The other differentials follow the
+    // mathematics.
+        const auto
+    inf = std::numeric_limits <Real>::infinity ();
+        const auto
+    check = [&] (auto f, double point, Real derivative)
+    {
+        INFO ("At ", point);
+            const auto
+        r = f (independent_variable <2, Real> (opaque <Real> (point), 0));
+        CHECK(r.differentials[0] == derivative);
+        CHECK(r.differentials[1] == 0);
+    };
+    check (FUNCTION (sqrt), 0, inf);
+    check (FUNCTION (cbrt), 0, inf);
+    check (FUNCTION (log), 0, inf);
+    check (FUNCTION (log2), 0, inf);
+    check (FUNCTION (log10), 0, inf);
+    check (FUNCTION (log1p), -1, inf);
+    check (FUNCTION (acos), 1, -inf);
+    check (FUNCTION (acos), -1, -inf);
+    check (FUNCTION (asin), 1, inf);
+    check (FUNCTION (asin), -1, inf);
+    check (FUNCTION (atanh), 1, inf);
+    check (FUNCTION (atanh), -1, inf);
+    check (FUNCTION (acosh), 1, inf);
+    // Overflows.
+    check (FUNCTION (exp), 1e5, inf);
+    check (FUNCTION (exp2), 1e6, inf);
+    check (FUNCTION (expm1), 1e5, inf);
+    check (FUNCTION (cosh), 1e5, inf);
+    check (FUNCTION (sinh), 1e5, inf);
+
+    // At the origin, the derivatives of atan2 and hypot are NaN (0 / 0).
+        const auto
+    x = independent_variable <3, Real> (opaque <Real> (0), 0);
+        const auto
+    y = independent_variable <3, Real> (opaque <Real> (0), 1);
+        const auto
+    zero = opaque <Real> (0);
+    for (auto const& r: {
+          atan2 (x, y), hypot (x, y), hypot (x, y, zero), hypot (x, zero, y), hypot (zero, x, y)
+    }){
+        CHECK(std::isnan (r.differentials[0]));
+        CHECK(std::isnan (r.differentials[1]));
+        CHECK(r.differentials[2] == 0);
+    }
+    for (auto const& r: {
+          atan2 (x, zero), atan2 (zero, x), hypot (x, zero), hypot (zero, x)
+        , hypot (x, zero, zero), hypot (zero, x, zero), hypot (zero, zero, x)
+    }){
+        CHECK(std::isnan (r.differentials[0]));
+        CHECK(r.differentials[1] == 0);
+        CHECK(r.differentials[2] == 0);
+    }
+}
 SUBCASE("pow with nested duals")
 {
     // A differential whose value is zero, but not its own differentials, is
