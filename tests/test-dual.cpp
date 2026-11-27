@@ -93,13 +93,27 @@ has_any_operation = requires (A const& a, B const& b) { a + b; }
     or requires (A const& a, B const& b) { fmax (b, a); }
     or requires (A const& a, B const& b) { fma (a, b, a); }
     or requires (A const& a, B const& b) { fma (b, b, a); }
-    or requires (A const& a, B const& b) { lerp (a, a, b); }
-    or requires (A const& a, B const& b) { isgreater (a, b); }
-    or requires (A const& a, B const& b) { isunordered (b, a); };
+    or requires (A const& a, B const& b) { lerp (a, a, b); };
 static_assert (not has_any_operation <dual_t <1>, dual_t <2>>);
 static_assert (not has_any_operation <dual_t <1>, std::complex <double>>);
 static_assert (not has_any_operation <dual_t <1>, not_comparable>);
 static_assert (not has_any_comparison <dual_t <1>, std::complex <double>>);
+
+// The same for the comparison functions, except with the C runtime of
+// Microsoft (UCRT), which declares them as templates of any two arguments,
+// without constraints: they exist for any types, including these.
+    template <class A, class B>
+    concept
+has_any_comparison_function = requires (A const& a, B const& b) { isgreater (a, b); }
+    or requires (A const& a, B const& b) { isgreater (b, a); }
+    or requires (A const& a, B const& b) { isunordered (a, b); }
+    or requires (A const& a, B const& b) { isunordered (b, a); };
+#ifndef _UCRT
+static_assert (not has_any_comparison_function <dual_t <1>, dual_t <2>>);
+static_assert (not has_any_comparison_function <dual_t <1>, std::complex <double>>);
+static_assert (not has_any_comparison_function <dual_t <1>, not_comparable>);
+static_assert (not has_any_comparison_function <dual_t <2, dual_t <1>>, dual_t <1>>);
+#endif
 
 // Nested duals combine with numbers, and with the duals of the same
 // structure: a dual of float with a dual of double, at each level. Not with

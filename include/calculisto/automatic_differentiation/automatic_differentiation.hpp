@@ -1811,52 +1811,39 @@ signbit (dual_t <N, T> const& a) noexcept
         using std::signbit;
     return signbit (a.value);
 }
-    template <class A, class B>
-    requires detail::dual_arguments <A, B>
-    bool
-isgreater (A const& a, B const& b) noexcept
-{
-        using std::isgreater;
-    return isgreater (detail::value_of (a), detail::value_of (b));
+
+// The comparison functions are overloads for each combination of duals and
+// numbers, rather than templates of any two arguments like the functions of
+// two arguments above: the C runtime of Microsoft (UCRT) declares them as
+// templates of any two arguments, with which those would be ambiguous.
+#define CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(f)  \
+    template <std::size_t N, class T, class U>              \
+    requires detail::same_structure <T, U>                  \
+    bool                                                    \
+f (dual_t <N, T> const& a, dual_t <N, U> const& b) noexcept \
+{                                                           \
+        using std::f;                                       \
+    return f (a.value, b.value);                            \
+}                                                           \
+    template <std::size_t N, class T, detail::arithmetic U> \
+    bool                                                    \
+f (dual_t <N, T> const& a, U const& b) noexcept             \
+{                                                           \
+        using std::f;                                       \
+    return f (a.value, b);                                  \
+}                                                           \
+    template <std::size_t N, class T, detail::arithmetic U> \
+    bool                                                    \
+f (U const& a, dual_t <N, T> const& b) noexcept             \
+{                                                           \
+        using std::f;                                       \
+    return f (a, b.value);                                  \
 }
-    template <class A, class B>
-    requires detail::dual_arguments <A, B>
-    bool
-isgreaterequal (A const& a, B const& b) noexcept
-{
-        using std::isgreaterequal;
-    return isgreaterequal (detail::value_of (a), detail::value_of (b));
-}
-    template <class A, class B>
-    requires detail::dual_arguments <A, B>
-    bool
-isless (A const& a, B const& b) noexcept
-{
-        using std::isless;
-    return isless (detail::value_of (a), detail::value_of (b));
-}
-    template <class A, class B>
-    requires detail::dual_arguments <A, B>
-    bool
-islessequal (A const& a, B const& b) noexcept
-{
-        using std::islessequal;
-    return islessequal (detail::value_of (a), detail::value_of (b));
-}
-    template <class A, class B>
-    requires detail::dual_arguments <A, B>
-    bool
-islessgreater (A const& a, B const& b) noexcept
-{
-        using std::islessgreater;
-    return islessgreater (detail::value_of (a), detail::value_of (b));
-}
-    template <class A, class B>
-    requires detail::dual_arguments <A, B>
-    bool
-isunordered (A const& a, B const& b) noexcept
-{
-        using std::isunordered;
-    return isunordered (detail::value_of (a), detail::value_of (b));
-}
+CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(isgreater)
+CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(isgreaterequal)
+CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(isless)
+CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(islessequal)
+CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(islessgreater)
+CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON(isunordered)
+#undef CALCULISTO_AUTOMATIC_DIFFERENTIATION_COMPARISON
 } // namespace calculisto::automatic_differentiation
